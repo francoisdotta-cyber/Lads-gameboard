@@ -287,17 +287,17 @@
   .stake-line{display:flex;align-items:center;gap:6px;font-size:13px}
   .stake-line input{width:64px}
 
-  /* Top section nav (Home / Game / Match Play / OOM) */
+  /* Top section nav (Home / Game / Match Play / OOM / Admin) */
   .section-nav{
-    display:grid;grid-template-columns:repeat(4,1fr);gap:0;
+    display:grid;grid-template-columns:repeat(5,1fr);gap:0;
     background:var(--green-dark);
     position:sticky;top:0;z-index:60;
     padding-top:env(safe-area-inset-top);
   }
   .section-nav button{
     background:transparent;border:none;color:rgba(255,255,255,.65);
-    padding:12px 4px 11px;font-size:12px;font-weight:700;
-    border-bottom:3px solid transparent;letter-spacing:.2px;
+    padding:12px 2px 11px;font-size:11px;font-weight:700;
+    border-bottom:3px solid transparent;letter-spacing:.1px;
     min-height:46px;
   }
   .section-nav button.cur{color:#fff;border-bottom-color:var(--accent);background:rgba(255,255,255,.06)}
@@ -519,6 +519,7 @@
   <button data-section="game">Game</button>
   <button data-section="matchplay">Match Play</button>
   <button data-section="oom">OOM</button>
+  <button data-section="admin">Admin</button>
 </nav>
 
 <!-- ====== HOME / DASHBOARD SECTION ====== -->
@@ -698,30 +699,6 @@
       </div>
       <input type="file" id="importFile" accept="application/json,.json" style="display:none" />
     </div>
-
-    <div class="card">
-      <h2>League admin <span class="sync-pill" id="syncPill">offline</span></h2>
-      <p class="small" style="margin-top:-4px;margin-bottom:10px">Sign in as admin to edit Match Play results and OOM from this app. Read-only for everyone else.</p>
-      <div id="adminSignedOut">
-        <button class="btn full" id="adminLoginBtn">Sign in as admin</button>
-      </div>
-      <div id="adminSignedIn" class="hidden">
-        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div>
-            <div style="font-weight:700;font-size:13px;color:var(--green-dark)">Signed in</div>
-            <div class="small" id="adminEmail">—</div>
-          </div>
-          <button class="btn ghost sm" id="adminLogoutBtn">Sign out</button>
-        </div>
-        <button class="btn ghost full" id="syncToCloudBtn">⇪ Force sync current view to cloud</button>
-        <p class="small" style="margin-top:8px">Edits made via tapping a match save to the cloud automatically. Use this button only if you need to forcibly push whatever you currently see (e.g. first-time setup, or after the cloud was wiped).</p>
-        <details class="adv" style="margin-top:8px">
-          <summary>Danger zone</summary>
-          <button class="btn danger sm" id="resetToSeedBtn" style="margin-top:8px;width:100%">⚠︎ Reset cloud to baked-in seed</button>
-          <p class="small" style="margin-top:6px">Replaces all cloud data with the bracket baked into the app code. Use only if the cloud is corrupted.</p>
-        </details>
-      </div>
-    </div>
   </section>
 
 </main>
@@ -771,6 +748,51 @@
     <div class="card">
       <h2>Scoring rule</h2>
       <ul class="mp-toc" id="oomRules"></ul>
+    </div>
+  </main>
+</div>
+
+<!-- ====== ADMIN SECTION ====== -->
+<div id="section-admin" class="hidden">
+  <div class="sec-title">
+    <h1>League admin <span class="sync-pill" id="syncPill">offline</span></h1>
+    <div class="sub">Sign in to edit Match Play and OOM. Read-only for everyone else.</div>
+  </div>
+  <main>
+    <div class="card">
+      <h2>Authentication</h2>
+      <div id="adminSignedOut">
+        <p class="small" style="margin-top:-4px;margin-bottom:10px">Only the league admin can edit results. Sign in with the credentials you set up in Supabase.</p>
+        <button class="btn full" id="adminLoginBtn">Sign in as admin</button>
+      </div>
+      <div id="adminSignedIn" class="hidden">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:700;font-size:14px;color:var(--green-dark)">Signed in</div>
+            <div class="small" id="adminEmail">—</div>
+          </div>
+          <button class="btn ghost sm" id="adminLogoutBtn">Sign out</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card hidden" id="adminToolsCard">
+      <h2>Cloud sync</h2>
+      <p class="small" style="margin-top:-4px;margin-bottom:10px">Edits made by tapping a match in the bracket save to the cloud automatically. The buttons below are for one-off sync needs.</p>
+      <button class="btn ghost full" id="syncToCloudBtn">⇪ Force sync current view to cloud</button>
+      <p class="small" style="margin-top:8px">Pushes whatever you currently see (including your edits) to Supabase. Useful for first-time setup or after a cloud wipe.</p>
+      <details class="adv" style="margin-top:8px">
+        <summary>Danger zone</summary>
+        <button class="btn danger sm" id="resetToSeedBtn" style="margin-top:8px;width:100%">⚠︎ Reset cloud to baked-in seed</button>
+        <p class="small" style="margin-top:6px">Replaces all cloud data with the bracket baked into the app code. Use only if the cloud is corrupted.</p>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>How to use</h2>
+      <p class="small" style="margin-top:-4px">
+        After signing in, an <b>Admin</b> badge appears on the Match Play page. From there, tap any match — in either the Bracket or List view — to set the winner and score. Saves push to the cloud immediately and everyone reading the app sees the update next time they refresh.
+      </p>
     </div>
   </main>
 </div>
@@ -896,6 +918,7 @@ function onAuthChange(){
   const signedIn = isAdmin();
   document.getElementById("adminSignedOut")?.classList.toggle("hidden", signedIn);
   document.getElementById("adminSignedIn")?.classList.toggle("hidden", !signedIn);
+  document.getElementById("adminToolsCard")?.classList.toggle("hidden", !signedIn);
   const em = document.getElementById("adminEmail");
   if(em) em.textContent = supaSession?.user?.email || "—";
   // Re-render visible sections so edit affordances appear/disappear
@@ -1708,9 +1731,11 @@ function setSection(name){
   $("#section-game").classList.toggle("hidden", name!=="game");
   $("#section-matchplay").classList.toggle("hidden", name!=="matchplay");
   $("#section-oom").classList.toggle("hidden", name!=="oom");
+  $("#section-admin").classList.toggle("hidden", name!=="admin");
   if(name==="home") renderDashboard();
   if(name==="matchplay") renderMatchPlay();
   if(name==="oom") renderOOM();
+  if(name==="admin") onAuthChange();   // refresh admin tools visibility
   try{ window.scrollTo({top:0,behavior:"instant"}); }catch(e){ window.scrollTo(0,0); }
 }
 

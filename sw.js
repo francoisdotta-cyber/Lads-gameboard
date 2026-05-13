@@ -2,7 +2,7 @@
    Cache-first for app shell so the scorecard works on the course
    even when the iPhone has no signal in the fairway.
 */
-const CACHE = "golf-hide-v12";
+const CACHE = "golf-hide-v13";
 const ASSETS = [
   "./",
   "./index.html",
