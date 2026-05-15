@@ -1,0 +1,2450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Golf Hide" />
+<meta name="theme-color" content="#0b6b3a" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="icon" href="icon-192.png" />
+<title>Laguna Lads Golf Dashboard</title>
+<!-- Supabase JS SDK (UMD) — exposes window.supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --green:#0b6b3a;
+    --green-dark:#064d28;
+    --green-light:#2a9b5e;
+    --cream:#f6f1e3;
+    --ink:#1a1a1a;
+    --muted:#6a6a6a;
+    --pos:#1b8f4a;
+    --neg:#c0392b;
+    --line:#d9d2bd;
+    --accent:#f4c542;
+    --bad-bg:#fdecea;
+    --bad-line:#e88a82;
+    --good-bg:#e9f5ec;
+    --good-line:#7bbd8e;
+    --p1:#2563eb; --p2:#dc2626; --p3:#a855f7; --p4:#f97316;
+  }
+  *{box-sizing:border-box}
+  html,body{
+    margin:0;padding:0;
+    -webkit-text-size-adjust:100%;
+    -webkit-tap-highlight-color:transparent;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--cream);color:var(--ink);
+    overscroll-behavior-y:contain;
+  }
+  body{
+    min-height:100vh;
+    padding:0 env(safe-area-inset-right) calc(80px + env(safe-area-inset-bottom)) env(safe-area-inset-left);
+  }
+  button{font-family:inherit;cursor:pointer;touch-action:manipulation}
+  input,select{font-family:inherit;font-size:16px} /* 16px prevents iOS zoom on focus */
+
+  /* ============== Sticky leaderboard header ============== */
+  header.lb{
+    position:sticky;top:46px;z-index:50;
+    background:var(--green);color:#fff;
+    padding:10px 12px 12px;
+    box-shadow:0 2px 10px rgba(0,0,0,.18);
+  }
+  .lb-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .lb-title{font-size:13px;font-weight:700;letter-spacing:.3px;opacity:.95}
+  .lb-sub{font-size:11px;opacity:.75;margin-top:2px}
+  .lb-actions{display:flex;gap:6px}
+  .icon-btn{
+    background:rgba(255,255,255,.18);border:none;color:#fff;
+    border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;
+    min-height:32px;
+  }
+  .icon-btn:active{background:rgba(255,255,255,.32)}
+  .lb-rows{display:grid;gap:5px;margin-top:8px}
+  .lb-row{
+    display:grid;grid-template-columns:18px 1fr auto auto;align-items:center;gap:8px;
+    background:rgba(255,255,255,.10);border-radius:8px;padding:5px 8px;
+    font-size:13px;
+  }
+  .lb-row .rank{font-weight:800;opacity:.85;font-size:12px}
+  .lb-row .name{font-weight:700;display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .lb-row .pts{font-weight:800;font-size:14px}
+  .lb-row .money{font-weight:700;font-size:13px;min-width:54px;text-align:right}
+  .pdot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+
+  /* ============== Generic cards ============== */
+  main{padding:14px 12px 0;max-width:760px;margin:0 auto}
+  .card{
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    padding:14px;margin-bottom:14px;
+    box-shadow:0 1px 2px rgba(0,0,0,.04);
+  }
+  .card h2{margin:0 0 10px;font-size:15px;color:var(--green-dark);letter-spacing:.2px}
+  .card h3{margin:14px 0 6px;font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+  label.field{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:600}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input.text, select.text, input.num{
+    width:100%;padding:10px 12px;font-size:16px;
+    border:1px solid var(--line);border-radius:9px;background:#fff;
+    min-height:44px;
+  }
+  input.num{text-align:center;font-weight:700}
+  select.text{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%23064d28' d='M0 0l6 8 6-8z'/></svg>");background-repeat:no-repeat;background-position:right 12px center;background-size:10px;padding-right:36px}
+  input:focus,select:focus{outline:2px solid var(--green-light);outline-offset:0;border-color:var(--green)}
+
+  .player-input{display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;margin-bottom:8px}
+  .player-input .pdot{width:14px;height:14px}
+  .player-input .x{
+    background:#fbe9e7;color:var(--neg);border:none;border-radius:8px;
+    width:34px;height:34px;font-size:18px;font-weight:700;
+  }
+
+  .btn{
+    background:var(--green);color:#fff;border:none;
+    padding:12px 16px;border-radius:10px;
+    font-size:14px;font-weight:700;
+    min-height:46px;
+  }
+  .btn:active{background:var(--green-dark)}
+  .btn.ghost{background:transparent;color:var(--green-dark);border:1.5px solid var(--green-dark)}
+  .btn.ghost:active{background:rgba(11,107,58,.08)}
+  .btn.danger{background:var(--neg)}
+  .btn.full{width:100%}
+  .btn.sm{padding:8px 12px;min-height:38px;font-size:13px}
+
+  /* ============== Rules toggles ============== */
+  .rules-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media (min-width:480px){.rules-grid{grid-template-columns:1fr 1fr 1fr}}
+  .rule{
+    border:1.5px solid var(--line);border-radius:10px;
+    padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;
+    background:#faf6e8;
+  }
+  .rule.on{background:#e9f5ec;border-color:var(--good-line)}
+  .rule.bad.on{background:#fdecea;border-color:var(--bad-line)}
+  .rule .lbl{font-size:13px;font-weight:600;color:var(--ink);line-height:1.15;flex:1;min-width:0}
+  .rule input.num{width:48px;padding:6px;min-height:34px}
+  .rule .toggle{
+    width:38px;height:22px;border-radius:999px;background:#e0d8b8;position:relative;cursor:pointer;flex:0 0 auto;
+  }
+  .rule.on .toggle{background:var(--green)}
+  .rule.bad.on .toggle{background:var(--neg)}
+  .rule .knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .12s}
+  .rule.on .knob{left:18px}
+
+  /* ============== Hole wizard ============== */
+  .hole-wrap{margin-top:6px}
+  .hole-bar{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;
+  }
+  .hole-bar .nav{
+    background:#fff;border:1.5px solid var(--green-dark);color:var(--green-dark);
+    border-radius:10px;width:48px;height:48px;font-size:22px;font-weight:800;
+  }
+  .hole-bar .nav:disabled{opacity:.35}
+  .hole-bar .meta{flex:1;text-align:center}
+  .hole-bar .hno{font-size:22px;font-weight:800;color:var(--green-dark)}
+  .hole-bar .par{font-size:13px;color:var(--green-dark);margin-top:3px;font-weight:700}
+  .hole-bar .par #parInput{
+    display:inline-block;background:#faf6e8;border:1px solid var(--line);
+    padding:2px 8px;border-radius:6px;
+  }
+
+  .hole-jump{display:grid;grid-template-columns:repeat(9,1fr);gap:4px;margin-bottom:12px}
+  .hole-jump button{
+    border:1px solid var(--line);background:#fff;border-radius:7px;
+    padding:5px 0;font-size:12px;font-weight:700;color:var(--green-dark);
+    min-height:32px;
+  }
+  .hole-jump button.cur{background:var(--green);color:#fff;border-color:var(--green)}
+  .hole-jump button.done{background:#e9f5ec;border-color:var(--good-line)}
+
+  .player-card{
+    background:#fff;border:1.5px solid var(--line);border-radius:12px;
+    padding:10px 12px;margin-bottom:10px;
+  }
+  .player-card .ph{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    margin-bottom:8px;
+  }
+  .player-card .ph .nm{display:flex;align-items:center;gap:6px;font-weight:700;color:var(--green-dark);font-size:14px;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .player-card .ph .pts{font-weight:800;font-size:14px}
+  .pos{color:var(--pos)} .neg{color:var(--neg)} .zero{color:var(--muted)}
+
+  .score-row{display:flex;gap:8px;align-items:stretch;margin-bottom:8px}
+  .score-row input.score{
+    flex:1;font-size:24px;font-weight:800;text-align:center;
+    border:1.5px solid var(--line);border-radius:10px;background:#fff;
+    padding:10px;min-height:50px;
+  }
+  .score-row input.score:focus{border-color:var(--green);outline:none}
+  .score-row .stepper{
+    display:flex;flex-direction:column;gap:4px;
+  }
+  .score-row .stepper button{
+    width:38px;height:23px;font-size:15px;font-weight:800;
+    border:1px solid var(--line);background:#faf6e8;color:var(--green-dark);
+    border-radius:6px;
+  }
+  .auto-chip{
+    display:inline-block;background:#fff;border:1px solid var(--line);
+    padding:3px 9px;border-radius:999px;font-size:11px;color:var(--muted);font-weight:600;
+  }
+  .auto-chip.eagle{background:#fff7d6;border-color:#e6c84a;color:#7a5b00}
+  .auto-chip.birdie{background:#e9f5ec;border-color:var(--green);color:var(--green-dark)}
+  .auto-chip.dbl{background:#fdecea;border-color:var(--neg);color:var(--neg)}
+
+  .ctrs{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+  @media (min-width:480px){.ctrs{grid-template-columns:1fr 1fr 1fr}}
+  .ctr{
+    display:flex;align-items:center;justify-content:space-between;
+    background:#fff;border:1px solid var(--line);border-radius:8px;
+    padding:3px 4px 3px 8px;font-size:11.5px;min-height:34px;
+  }
+  .ctr.good.active{background:var(--good-bg);border-color:var(--good-line)}
+  .ctr.bad.active {background:var(--bad-bg); border-color:var(--bad-line)}
+  .ctr.dis{opacity:.35}
+  .ctr .lbl{flex:1;font-weight:700;line-height:1.1;color:var(--ink)}
+  .ctr .ctrls{display:flex;align-items:center;gap:1px}
+  .ctr button{
+    width:24px;height:26px;border:none;border-radius:6px;
+    background:#eee5cc;color:var(--green-dark);font-weight:800;
+    font-size:14px;line-height:1;padding:0;
+  }
+  .ctr.bad button{background:#f5d6d2;color:var(--neg)}
+  .ctr button:active{filter:brightness(.92)}
+  .ctr .num{min-width:18px;text-align:center;font-weight:800;font-size:13px;color:var(--ink)}
+  .ctr.good.active .num{color:var(--pos)}
+  .ctr.bad.active .num{color:var(--neg)}
+
+  /* Yes/No toggle chip (single tappable rectangle) */
+  .ctr.toggle-ctr{
+    cursor:pointer;user-select:none;
+    padding:6px 10px;min-height:40px;
+    justify-content:space-between;
+  }
+  .ctr.toggle-ctr .num{
+    font-size:16px;width:22px;height:22px;
+    border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+    background:#eee5cc;color:var(--muted);
+  }
+  .ctr.toggle-ctr.good.active .num{background:var(--green);color:#fff}
+  .ctr.toggle-ctr.bad.active  .num{background:var(--neg);  color:#fff}
+  .ctr.toggle-ctr:active{filter:brightness(.96)}
+
+  /* Per-player bonus row (Settings tab) */
+  .bonus-row{
+    display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap;
+    background:#faf6e8;border:1px solid var(--line);border-radius:9px;
+    padding:6px 8px;
+  }
+  .bonus-row.on{background:#e9f5ec;border-color:var(--good-line)}
+  .bonus-row .num{width:54px;padding:6px;min-height:32px;font-size:14px}
+  .bonus-row .small{font-size:11px;color:var(--muted)}
+  .bonus-tog{
+    background:#fff;border:1px solid var(--line);border-radius:8px;
+    padding:5px 10px;font-size:12px;font-weight:700;color:var(--muted);
+    min-height:30px;
+  }
+  .bonus-row.on .bonus-tog{background:var(--green);color:#fff;border-color:var(--green)}
+  /* Penalty row uses red palette when active */
+  .bonus-row.penalty-row.on{background:#fdecea;border-color:var(--bad-line)}
+  .bonus-row.penalty-row.on .bonus-tog{background:var(--neg);color:#fff;border-color:var(--neg)}
+
+  /* Delete button on round cards */
+  .round-card .rc-actions{
+    display:flex;justify-content:flex-end;margin-top:8px;
+  }
+  .round-card .rc-del{
+    background:transparent;border:1px solid #f5c2bc;color:var(--neg);
+    border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;
+  }
+  .round-card .rc-del:active{background:#fbe9e7}
+
+  /* ============== Summary / settle ============== */
+  .summary-tbl{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+  .summary-tbl th,.summary-tbl td{
+    padding:7px 6px;border-bottom:1px dashed var(--line);text-align:right;
+  }
+  .summary-tbl th:first-child,.summary-tbl td:first-child{text-align:left;color:var(--muted);font-weight:600}
+  .summary-tbl th{color:var(--green-dark);font-weight:700;font-size:12px}
+  .settle{
+    background:#faf6e8;border:1px solid var(--line);border-radius:10px;
+    padding:10px;margin-top:10px;font-size:13px;
+  }
+  .settle .ln{display:flex;justify-content:space-between;padding:3px 0}
+  .settle .ln.pos b{color:var(--pos)}
+  .settle .ln.neg b{color:var(--neg)}
+
+  details.adv{margin-top:8px}
+  details.adv summary{cursor:pointer;font-weight:700;color:var(--green-dark);font-size:13px}
+
+  .small{font-size:11px;color:var(--muted)}
+  .stake-line{display:flex;align-items:center;gap:6px;font-size:13px}
+  .stake-line input{width:64px}
+
+  /* Top section nav (Home / Game / Match Play / OOM / Admin) */
+  .section-nav{
+    display:grid;grid-template-columns:repeat(5,1fr);gap:0;
+    background:var(--green-dark);
+    position:sticky;top:0;z-index:60;
+    padding-top:env(safe-area-inset-top);
+  }
+  .section-nav button{
+    background:transparent;border:none;color:rgba(255,255,255,.65);
+    padding:12px 2px 11px;font-size:11px;font-weight:700;
+    border-bottom:3px solid transparent;letter-spacing:.1px;
+    min-height:46px;
+  }
+  .section-nav button.cur{color:#fff;border-bottom-color:var(--accent);background:rgba(255,255,255,.06)}
+  .section-nav button:active{background:rgba(255,255,255,.12)}
+
+  .tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:14px 12px 0;max-width:760px}
+  @media (min-width:760px){.tabs{margin-left:auto;margin-right:auto}}
+  .tab{
+    background:#fff;border:1px solid var(--line);border-radius:10px;
+    padding:8px 4px;text-align:center;font-size:11.5px;font-weight:700;color:var(--muted);
+    min-height:38px;
+  }
+  .tab.cur{background:var(--green);color:#fff;border-color:var(--green)}
+
+  /* Match Play / OOM cards */
+  .mp-toc{list-style:none;padding:0;margin:0;font-size:13px}
+  .mp-toc li{
+    padding:8px 10px;border-left:3px solid var(--green);background:#faf6e8;
+    border-radius:6px;margin-bottom:6px;line-height:1.4;
+  }
+  .mp-round{
+    background:#fff;border:1px solid var(--line);border-radius:12px;
+    padding:12px;margin-bottom:10px;
+  }
+  .mp-round h3{margin:0 0 8px;color:var(--green-dark);font-size:14px;font-weight:800}
+  .mp-match{
+    display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+    gap:8px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px;
+  }
+  .mp-match:last-child{border-bottom:none}
+  .mp-match .pl{padding:6px 8px;border-radius:6px;text-align:center;line-height:1.2;font-weight:600}
+  .mp-match .pl.win{background:#e9f5ec;color:var(--green-dark);border:1px solid var(--good-line);font-weight:800}
+  .mp-match .pl.lose{color:var(--muted);text-decoration:line-through;text-decoration-color:rgba(0,0,0,.25)}
+  .mp-match .pl.tbd{color:var(--muted);font-style:italic;font-weight:400}
+  .mp-match .vs{
+    font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;
+    text-align:center;letter-spacing:.5px;
+  }
+  .mp-match .score{font-size:11px;color:var(--green-dark);font-weight:800;margin-top:1px}
+  .round-picker{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .round-picker button{
+    background:#fff;border:1px solid var(--line);border-radius:999px;
+    padding:6px 12px;font-size:12px;font-weight:700;color:var(--muted);
+    min-height:32px;
+  }
+  .round-picker button.cur{background:var(--green);color:#fff;border-color:var(--green)}
+  .round-picker button.done::after{content:" ✓";font-size:10px;color:var(--pos)}
+  .round-picker button.cur.done::after{color:var(--accent)}
+
+  /* OOM leaderboard */
+  .oom-tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .oom-tbl th{padding:7px 6px;background:#faf6e8;font-weight:700;color:var(--green-dark);font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+  .oom-tbl td{padding:8px 6px;border-bottom:1px dashed var(--line)}
+  .oom-tbl tr:nth-child(1) td{font-weight:800}
+  .oom-tbl td:first-child{width:30px;color:var(--muted);text-align:center;font-weight:800}
+  .oom-tbl td.pts{text-align:right;font-weight:800;color:var(--green-dark)}
+  .oom-tbl .medal-1{color:#b8860b}
+  .oom-tbl .medal-2{color:#71706f}
+  .oom-tbl .medal-3{color:#915a35}
+
+  /* Modal */
+  .modal-bg{
+    position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;
+    display:flex;align-items:center;justify-content:center;padding:20px;
+  }
+  .modal{
+    background:#fff;border-radius:14px;max-width:380px;width:100%;
+    padding:18px;box-shadow:0 12px 32px rgba(0,0,0,.25);
+  }
+  .modal h3{margin:0 0 12px;color:var(--green-dark);font-size:16px}
+  .modal .row{margin-bottom:10px}
+  .modal label.field{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:600}
+  .modal .actions{display:flex;gap:8px;margin-top:14px;justify-content:flex-end}
+  .modal .err{color:var(--neg);font-size:12px;margin-top:6px;display:none}
+  .modal .err.show{display:block}
+
+  /* Admin badge + edit pencil */
+  .admin-badge{
+    background:var(--accent);color:#3a2a00;border-radius:999px;
+    padding:2px 8px;font-size:10px;font-weight:800;letter-spacing:.3px;
+    text-transform:uppercase;margin-left:6px;vertical-align:middle;
+  }
+  .edit-pencil{
+    background:#fff7d6;border:1px solid #e6c84a;color:#7a5b00;
+    border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;
+    margin-left:6px;min-height:0;cursor:pointer;
+  }
+  .edit-pencil:active{background:#fff0a8}
+  .mp-match.editable{cursor:pointer}
+  .mp-match.editable:active{background:#faf6e8}
+
+  /* Sync status pill */
+  .sync-pill{
+    display:inline-block;background:#faf6e8;border:1px solid var(--line);
+    border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700;
+    color:var(--muted);letter-spacing:.3px;text-transform:uppercase;
+  }
+  .sync-pill.live{background:#e9f5ec;border-color:var(--good-line);color:var(--pos)}
+  .sync-pill.offline{background:#fdecea;border-color:var(--bad-line);color:var(--neg)}
+
+  /* Section-level title (above sub-tabs) */
+  .sec-title{
+    padding:14px 12px 0;max-width:760px;margin:0 auto;
+  }
+  .sec-title h1{margin:0;font-size:18px;color:var(--green-dark);font-weight:800}
+  .sec-title .sub{font-size:12px;color:var(--muted);margin-top:2px}
+
+  /* Dashboard / home page */
+  .dash-hero{
+    background:linear-gradient(135deg,var(--green) 0%,var(--green-dark) 100%);
+    color:#fff;padding:24px 18px 22px;text-align:center;
+    box-shadow:0 4px 16px rgba(0,0,0,.15);
+  }
+  .dash-hero h1{margin:0;font-size:22px;font-weight:800;letter-spacing:.3px}
+  .dash-hero .dash-tag{margin:6px 0 18px;font-size:13px;opacity:.85;font-weight:500}
+  .hero-btn{
+    background:var(--accent);color:#3a2a00;border:none;font-weight:800;
+    font-size:15px;border-radius:12px;padding:14px 16px;min-height:50px;
+    box-shadow:0 3px 8px rgba(0,0,0,.18);
+  }
+  .hero-btn:active{background:#e6a514}
+  .hero-plus{font-size:18px;font-weight:900;margin-right:4px}
+
+  .dash-card{cursor:pointer;transition:transform .08s}
+  .dash-card:active{transform:scale(.98);background:#faf6e8}
+  .dash-card-head{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center}
+  .dash-emoji{font-size:28px;line-height:1}
+  .dash-title{font-size:16px;font-weight:800;color:var(--green-dark)}
+  .dash-sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .dash-arrow{font-size:22px;color:var(--green-dark);font-weight:800}
+
+  /* Match Play view toggle */
+  .mp-view-toggle{
+    display:inline-flex;background:#faf6e8;border:1px solid var(--line);border-radius:999px;padding:3px;margin-bottom:10px;
+  }
+  .mp-view-toggle button{
+    background:transparent;border:none;font-size:12px;font-weight:700;
+    padding:6px 14px;border-radius:999px;color:var(--muted);min-height:30px;
+  }
+  .mp-view-toggle button.cur{background:var(--green);color:#fff}
+
+  /* SVG bracket */
+  .mp-bracket-scroll{
+    overflow-x:auto;overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+    background:#faf6e8;border:1px solid var(--line);border-radius:10px;padding:14px 8px;
+    margin:0 -2px;
+  }
+  .mp-bracket-svg{display:block;min-width:100%}
+  /* All SVG text inherits the same app font (SF Pro on Apple) */
+  .mp-bracket-svg text{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mp-bracket-svg .col-label{
+    font-size:10.5px;font-weight:700;fill:var(--green-dark);
+    text-transform:uppercase;letter-spacing:.6px;
+  }
+  .mp-bracket-svg .box{fill:#fff;stroke:var(--line);stroke-width:1}
+  .mp-bracket-svg .box-line{stroke:var(--line);stroke-width:1;fill:none}
+  .mp-bracket-svg .name-a, .mp-bracket-svg .name-b{
+    font-size:12px;fill:var(--ink);font-weight:500;letter-spacing:.1px;
+  }
+  .mp-bracket-svg .name-win{fill:var(--green-dark);font-weight:700}
+  .mp-bracket-svg .name-lose{fill:var(--ink);opacity:.35;font-weight:400}
+  .mp-bracket-svg .name-tbd{fill:var(--muted);font-style:italic;font-weight:400;opacity:.7}
+  .mp-bracket-svg .score-tag{
+    font-size:9.5px;fill:var(--green-dark);font-weight:700;letter-spacing:.3px;
+  }
+  .mp-bracket-svg .conn{stroke:var(--green-dark);stroke-width:1;fill:none;opacity:.35}
+  .mp-bracket-svg .champion-box{fill:#fff7d6;stroke:#e6c84a;stroke-width:1.5}
+  .mp-bracket-svg .champion-text{font-size:13px;font-weight:700;fill:#7a5b00;letter-spacing:.3px}
+
+  /* History list */
+  .round-card{
+    background:#fff;border:1px solid var(--line);border-radius:12px;
+    padding:12px;margin-bottom:10px;
+  }
+  .round-card .rc-head{
+    display:flex;justify-content:space-between;align-items:flex-start;gap:8px;
+    margin-bottom:6px;
+  }
+  .round-card .rc-title{font-weight:800;color:var(--green-dark);font-size:14px}
+  .round-card .rc-when{font-size:11px;color:var(--muted);margin-top:2px}
+  .round-card .rc-winner{font-size:12px;font-weight:700;color:var(--pos);text-align:right}
+  .round-card .rc-strip{
+    display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;font-size:12px;
+  }
+  .round-card .rc-strip .pchip{
+    background:#faf6e8;border:1px solid var(--line);border-radius:999px;padding:2px 8px;
+    display:inline-flex;align-items:center;gap:4px;
+  }
+  .round-card .rc-expand{
+    border-top:1px dashed var(--line);margin-top:10px;padding-top:10px;
+    display:none;
+  }
+  .round-card.open .rc-expand{display:block}
+  .round-card .rc-toggle{
+    background:transparent;border:none;color:var(--green-dark);font-weight:700;font-size:12px;padding:4px 0;
+  }
+  .stats-card .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .stats-card .sbox{
+    background:#faf6e8;border:1px solid var(--line);border-radius:10px;
+    padding:8px 10px;
+  }
+  .stats-card .sbox .lbl{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+  .stats-card .sbox .val{font-size:18px;font-weight:800;color:var(--green-dark);margin-top:2px}
+
+  .hidden{display:none !important}
+
+  .toast{
+    position:fixed;left:50%;bottom:90px;transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;
+    opacity:0;transition:opacity .15s;pointer-events:none;z-index:200;
+  }
+  .toast.show{opacity:.94}
+</style>
+</head>
+<body>
+
+<!-- Top section nav (Home / Game / Match Play / OOM) -->
+<nav class="section-nav" id="sectionNav">
+  <button data-section="home" class="cur">Home</button>
+  <button data-section="game">HideFa Game</button>
+  <button data-section="matchplay">Match Play</button>
+  <button data-section="oom">OOM</button>
+  <button data-section="admin">Admin</button>
+</nav>
+
+<!-- ====== HOME / DASHBOARD SECTION ====== -->
+<div id="section-home">
+  <div class="dash-hero">
+    <h1>Laguna Lads Golf Dashboard</h1>
+    <p class="dash-tag">Live scorecards · Match Play Cup · Order of Merit</p>
+    <button class="btn full hero-btn" id="heroStartGame">
+      <span class="hero-plus">+</span> Start a new game
+    </button>
+    <button class="btn ghost full" id="heroResumeGame" style="margin-top:8px;display:none">Resume current game</button>
+  </div>
+  <main>
+    <div class="card dash-card" data-go="game">
+      <div class="dash-card-head">
+        <span class="dash-emoji">⛳</span>
+        <div>
+          <div class="dash-title">HideFa Game</div>
+          <div class="dash-sub" id="dashGameSub">Tap to set up players, rules, and stake</div>
+        </div>
+        <span class="dash-arrow">›</span>
+      </div>
+    </div>
+    <div class="card dash-card" data-go="matchplay">
+      <div class="dash-card-head">
+        <span class="dash-emoji">🏆</span>
+        <div>
+          <div class="dash-title">Match Play Cup</div>
+          <div class="dash-sub" id="dashMpSub">Bracket and results</div>
+        </div>
+        <span class="dash-arrow">›</span>
+      </div>
+    </div>
+    <div class="card dash-card" data-go="oom">
+      <div class="dash-card-head">
+        <span class="dash-emoji">📊</span>
+        <div>
+          <div class="dash-title">Order of Merit</div>
+          <div class="dash-sub" id="dashOomSub">Season standings</div>
+        </div>
+        <span class="dash-arrow">›</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ====== GAME SECTION ====== -->
+<div id="section-game" class="hidden">
+<header class="lb">
+  <div class="lb-top">
+    <div>
+      <div class="lb-title" id="courseTitle">Laguna National — Masters</div>
+      <div class="lb-sub" id="lbSub">Hole 1 · Par 4 · $5/pt</div>
+    </div>
+  </div>
+  <div class="lb-rows" id="lbRows"></div>
+</header>
+
+<div class="tabs" role="tablist">
+  <button class="tab cur" data-tab="play">Play</button>
+  <button class="tab" data-tab="board">Board</button>
+  <button class="tab" data-tab="rounds">Rounds</button>
+  <button class="tab" data-tab="settings">Settings</button>
+</div>
+
+<main>
+
+  <!-- ============ PLAY TAB ============ -->
+  <section id="tab-play">
+    <div class="row" style="gap:8px;margin-bottom:12px">
+      <button class="btn ghost sm" id="newGameBtn" style="flex:1">+ New game (settings)</button>
+      <button class="btn ghost sm" id="archiveGameBtn" style="flex:1">📦 Archive game</button>
+    </div>
+    <div class="hole-bar">
+      <button class="nav" id="prevHole" aria-label="Previous hole">‹</button>
+      <div class="meta">
+        <div class="hno" id="holeNo">Hole 1</div>
+        <div class="par"><span id="parInput">Par 4</span></div>
+      </div>
+      <button class="nav" id="nextHole" aria-label="Next hole">›</button>
+    </div>
+    <div class="hole-jump" id="holeJump"></div>
+    <div id="playerCards"></div>
+    <button class="btn full" id="nextBtn">Save & Next hole ›</button>
+  </section>
+
+  <!-- ============ LEADERBOARD TAB ============ -->
+  <section id="tab-board" class="hidden">
+    <div class="card">
+      <h2>Leaderboard</h2>
+      <table class="summary-tbl" id="boardTbl"></table>
+      <h3>Settlement (each-vs-each at $<span id="settleStake">5</span>/pt)</h3>
+      <div class="settle" id="settleBox"></div>
+      <p class="small">Per-player line shows what they net across all head-to-head matchups. Sum of all nets is always $0.</p>
+    </div>
+    <div class="card">
+      <h2>Round summary</h2>
+      <table class="summary-tbl" id="summaryTbl"></table>
+    </div>
+  </section>
+
+  <!-- ============ ROUNDS TAB ============ -->
+  <section id="tab-rounds" class="hidden">
+    <div class="card stats-card hidden" id="statsCard">
+      <h2>Lifetime stats</h2>
+      <div class="stat-grid" id="statsTopline"></div>
+      <h3>By player</h3>
+      <table class="summary-tbl" id="statsByPlayer"></table>
+      <p class="small" style="margin-top:6px">Stats include archived rounds only. Players are matched by exact name across rounds.</p>
+    </div>
+    <div class="card">
+      <h2>Past rounds</h2>
+      <p class="small" id="roundsSub" style="margin-top:-4px;margin-bottom:10px">No archived rounds yet — finish your first round and tap "Start new round" in Settings to archive it.</p>
+      <div id="roundsList"></div>
+    </div>
+  </section>
+
+  <!-- ============ SETTINGS TAB ============ -->
+  <section id="tab-settings" class="hidden">
+    <div class="card">
+      <h2>Course</h2>
+      <label class="field" for="courseSel">Select course</label>
+      <select class="text" id="courseSel">
+        <option value="masters">Laguna National — Masters (par 72)</option>
+        <option value="classic">Laguna National — Classic (par 72)</option>
+      </select>
+      <p class="small" style="margin-top:10px">Pars are fixed by course. Picking a course locks the par layout for all 18 holes.</p>
+    </div>
+
+    <div class="card">
+      <h2>Players &amp; round-end bonus</h2>
+      <div id="playerList"></div>
+      <button class="btn ghost sm" id="addPlayer">+ Add player</button>
+      <p class="small" style="margin-top:10px">2–4 players. Each player can independently set a target stroke threshold (e.g. break 80) and the points awarded if they hit it across all 18 holes.</p>
+    </div>
+
+    <div class="card">
+      <h2>Stake</h2>
+      <div class="stake-line">
+        <span>$</span>
+        <input class="num" id="stakeInput" type="number" inputmode="numeric" min="0" step="1" />
+        <span>per point</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Rules &amp; point values</h2>
+      <p class="small" style="margin-top:-4px;margin-bottom:10px">Toggle which stats count. Edit point value per occurrence inline.</p>
+      <div class="rules-grid" id="rulesGrid"></div>
+    </div>
+
+    <div class="card">
+      <h2>Round actions</h2>
+      <div class="row" style="gap:8px">
+        <button class="btn full" id="archiveAndStart">Start new round (archive current)</button>
+      </div>
+      <details class="adv" style="margin-top:8px">
+        <summary>Advanced</summary>
+        <div class="row" style="margin-top:10px;gap:8px">
+          <button class="btn ghost sm" id="resetRound">Wipe scores (no archive)</button>
+          <button class="btn danger sm" id="newRound">Full reset (delete history too)</button>
+        </div>
+        <p class="small" style="margin-top:8px">"Wipe scores" clears the current round without saving it to history. "Full reset" wipes everything including archived rounds — there's no undo.</p>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>History &amp; stats</h2>
+      <div class="rule" id="statsToggleRow">
+        <span class="lbl">Show lifetime stats on Rounds tab</span>
+        <div class="toggle" data-stats-toggle><div class="knob"></div></div>
+      </div>
+      <p class="small" style="margin-top:8px">When enabled, the Rounds tab shows aggregate stats (rounds played, total $, wins, average points per round per player).</p>
+
+      <h3>Backup</h3>
+      <p class="small" style="margin-top:-4px;margin-bottom:8px">Save your rounds to a file you can keep anywhere — handy if you change phone or clear browser data.</p>
+      <div class="row" style="gap:8px">
+        <button class="btn ghost sm" id="exportBtn">⤓ Export rounds (JSON)</button>
+        <button class="btn ghost sm" id="importBtn">⤒ Import rounds…</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json,.json" style="display:none" />
+    </div>
+  </section>
+
+</main>
+</div><!-- /section-game -->
+
+<!-- ====== MATCH PLAY SECTION ====== -->
+<div id="section-matchplay" class="hidden">
+  <div class="sec-title">
+    <h1 id="mpTitle">Laguna Lads 2026 Match Play Cup H1</h1>
+    <div class="sub" id="mpSub">Knockout bracket · Classic Course · Blue tees</div>
+  </div>
+  <main>
+    <div class="card">
+      <h2>Bracket</h2>
+      <div class="mp-view-toggle" role="tablist">
+        <button class="cur" data-mp-view="bracket">Bracket</button>
+        <button data-mp-view="list">List</button>
+      </div>
+      <div id="mpBracketView">
+        <div class="mp-bracket-scroll" id="mpBracketScroll"></div>
+        <p class="small" style="margin-top:6px">Scroll horizontally to see all rounds. Winners are highlighted in green.</p>
+      </div>
+      <div id="mpListView" class="hidden">
+        <div class="round-picker" id="mpRoundPicker"></div>
+        <div id="mpBracket"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Terms of competition</h2>
+      <ul class="mp-toc" id="mpToc"></ul>
+    </div>
+  </main>
+</div>
+
+<!-- ====== OOM SECTION ====== -->
+<div id="section-oom" class="hidden">
+  <div class="sec-title">
+    <h1>Order of Merit</h1>
+    <div class="sub" id="oomSub">Season standings</div>
+  </div>
+  <main>
+    <div class="card">
+      <h2>Leaderboard</h2>
+      <table class="oom-tbl" id="oomTbl"></table>
+      <p class="small" id="oomNote" style="margin-top:8px"></p>
+    </div>
+    <div class="card">
+      <h2>Scoring rule</h2>
+      <ul class="mp-toc" id="oomRules"></ul>
+    </div>
+  </main>
+</div>
+
+<!-- ====== ADMIN SECTION ====== -->
+<div id="section-admin" class="hidden">
+  <div class="sec-title">
+    <h1>League admin <span class="sync-pill" id="syncPill">offline</span></h1>
+    <div class="sub">Sign in to edit Match Play and OOM. Read-only for everyone else.</div>
+  </div>
+  <main>
+    <div class="card">
+      <h2>Authentication</h2>
+      <div id="adminSignedOut">
+        <p class="small" style="margin-top:-4px;margin-bottom:10px">Only the league admin can edit results. Sign in with the credentials you set up in Supabase.</p>
+        <button class="btn full" id="adminLoginBtn">Sign in as admin</button>
+      </div>
+      <div id="adminSignedIn" class="hidden">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:700;font-size:14px;color:var(--green-dark)">Signed in</div>
+            <div class="small" id="adminEmail">—</div>
+          </div>
+          <button class="btn ghost sm" id="adminLogoutBtn">Sign out</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card hidden" id="adminToolsCard">
+      <h2>Cloud sync</h2>
+      <p class="small" style="margin-top:-4px;margin-bottom:10px">Edits made by tapping a match in the bracket save to the cloud automatically. The buttons below are for one-off sync needs.</p>
+      <button class="btn ghost full" id="syncToCloudBtn">⇪ Force sync current view to cloud</button>
+      <p class="small" style="margin-top:8px">Pushes whatever you currently see (including your edits) to Supabase. Useful for first-time setup or after a cloud wipe.</p>
+      <details class="adv" style="margin-top:8px">
+        <summary>Danger zone</summary>
+        <button class="btn danger sm" id="resetToSeedBtn" style="margin-top:8px;width:100%">⚠︎ Reset cloud to baked-in seed</button>
+        <p class="small" style="margin-top:6px">Replaces all cloud data with the bracket baked into the app code. Use only if the cloud is corrupted.</p>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>How to use</h2>
+      <p class="small" style="margin-top:-4px">
+        After signing in, an <b>Admin</b> badge appears on the Match Play page. From there, tap any match — in either the Bracket or List view — to set the winner and score. Saves push to the cloud immediately and everyone reading the app sees the update next time they refresh.
+      </p>
+    </div>
+  </main>
+</div>
+
+<!-- Sign-in modal -->
+<div id="loginModal" class="modal-bg hidden">
+  <div class="modal">
+    <h3>Admin sign in</h3>
+    <div class="row"><label class="field">Email</label><input class="text" type="email" id="loginEmail" autocomplete="email" /></div>
+    <div class="row"><label class="field">Password</label><input class="text" type="password" id="loginPassword" autocomplete="current-password" /></div>
+    <div class="err" id="loginErr"></div>
+    <div class="actions">
+      <button class="btn ghost sm" id="loginCancel">Cancel</button>
+      <button class="btn sm" id="loginSubmit">Sign in</button>
+    </div>
+  </div>
+</div>
+
+<!-- Match edit modal (admin only) -->
+<div id="matchModal" class="modal-bg hidden">
+  <div class="modal">
+    <h3 id="matchModalTitle">Edit match</h3>
+    <div class="row"><label class="field">Player A</label><input class="text" type="text" id="matchPlayerA" /></div>
+    <div class="row"><label class="field">Player B</label><input class="text" type="text" id="matchPlayerB" /></div>
+    <div class="row"><label class="field">Winner</label>
+      <select class="text" id="matchWinner">
+        <option value="">— not decided —</option>
+        <option value="A">Player A</option>
+        <option value="B">Player B</option>
+      </select>
+    </div>
+    <div class="row"><label class="field">Score (e.g. "2&1", "3&2", "1Up", "AS")</label><input class="text" type="text" id="matchScore" /></div>
+    <div class="err" id="matchErr"></div>
+    <div class="actions">
+      <button class="btn ghost sm" id="matchCancel">Cancel</button>
+      <button class="btn sm" id="matchSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   GOLF HIDE — On-Course Scorecard (multi-player, mobile-first)
+   ============================================================ */
+
+const STORAGE_KEY = "golf-hide-app-v2";   // v2 introduces multi-round history + stats toggle
+
+/* ============================================================
+   SUPABASE — shared league data (Match Play + OOM)
+   ============================================================ */
+const SUPABASE_URL  = "https://btqdkqxbcjlioeinxlmt.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0cWRrcXhiY2psaW9laW54bG10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1ODI2ODMsImV4cCI6MjA5NDE1ODY4M30.TIoyNWIu_9QvYgb9JDt4Ff-k4QjqGTQSxr2yjuVZ--s";
+const MP_ROW_ID  = "h1-2026";
+const OOM_ROW_ID = "current";
+
+let supa = null;            // Supabase client (lazy-init when SDK loaded)
+let supaSession = null;     // current auth session (null = signed out)
+let REMOTE = { matchplay: null, oom: null };  // remote data caches
+
+function isAdmin(){ return !!supaSession; }
+
+async function initSupabase(){
+  if(typeof supabase === "undefined") return;   // SDK not loaded
+  supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+    auth: { persistSession: true, autoRefreshToken: true, storageKey: "lagunalads-auth" }
+  });
+  // Existing session?
+  const { data: { session } } = await supa.auth.getSession();
+  supaSession = session;
+  supa.auth.onAuthStateChange((_evt, s)=>{
+    supaSession = s;
+    onAuthChange();
+  });
+}
+
+async function loadRemote(){
+  if(!supa) return;
+  try{
+    const [mpRes, oomRes] = await Promise.all([
+      supa.from("matchplay_cups").select("data").eq("id", MP_ROW_ID).maybeSingle(),
+      supa.from("oom_data").select("data").eq("id", OOM_ROW_ID).maybeSingle(),
+    ]);
+    if(mpRes.data?.data && !mpRes.data.data.placeholder)  REMOTE.matchplay = mpRes.data.data;
+    if(oomRes.data?.data && !oomRes.data.data.placeholder) REMOTE.oom       = oomRes.data.data;
+    setSyncPill("live");
+  }catch(e){ setSyncPill("offline"); }
+}
+
+async function saveMatchPlayToCloud(data){
+  if(!supa || !isAdmin()) { showToast("Admin sign-in required"); return false; }
+  const { error } = await supa.from("matchplay_cups")
+    .upsert({ id: MP_ROW_ID, data, updated_at: new Date().toISOString() });
+  if(error){ showToast("Save failed: "+error.message); return false; }
+  REMOTE.matchplay = data;
+  return true;
+}
+
+async function saveOOMToCloud(data){
+  if(!supa || !isAdmin()) { showToast("Admin sign-in required"); return false; }
+  const { error } = await supa.from("oom_data")
+    .upsert({ id: OOM_ROW_ID, data, updated_at: new Date().toISOString() });
+  if(error){ showToast("Save failed: "+error.message); return false; }
+  REMOTE.oom = data;
+  return true;
+}
+
+/* Propagate winners forward through the bracket.
+   When a previous round has 2× the matches of the current round (a clean
+   halving — e.g. 4 QF → 2 SF → 1 Final), any "TBD" slot in the current
+   round is auto-filled from the corresponding feeder match's winner.
+   Standard bracket pairing: match[i] in round R feeds match[floor(i/2)] in
+   round R+1, slot A if i is even, slot B if i is odd.
+*/
+function withWinnersPropagated(data){
+  if(!data || !Array.isArray(data.rounds)) return data;
+  const out = JSON.parse(JSON.stringify(data));
+  for(let r=1; r<out.rounds.length; r++){
+    const cur = out.rounds[r];
+    const prev = out.rounds[r-1];
+    if(!prev?.matches || prev.matches.length !== 2 * cur.matches.length) continue;
+    cur.matches.forEach((m, i) => {
+      const feedA = prev.matches[2*i];
+      const feedB = prev.matches[2*i + 1];
+      const isTbdA = !m.a || m.a === "TBD" || /^Winner /.test(m.a);
+      const isTbdB = !m.b || m.b === "TBD" || /^Winner /.test(m.b);
+      if(isTbdA && feedA?.winner) m.a = feedA.winner;
+      if(isTbdB && feedB?.winner) m.b = feedB.winner;
+    });
+  }
+  return out;
+}
+
+/* Getters that prefer remote data, else fall back to seed,
+   then propagate winners through the bracket for display. */
+function getMatchPlay(){ return withWinnersPropagated(REMOTE.matchplay || MATCH_PLAY_SEED); }
+function getOOM(){       return REMOTE.oom       || OOM_RULES; }
+
+function setSyncPill(state){
+  const p = document.getElementById("syncPill");
+  if(!p) return;
+  p.classList.remove("live","offline");
+  if(state==="live"){    p.textContent = "live"; p.classList.add("live"); }
+  else if(state==="offline"){ p.textContent = "offline"; p.classList.add("offline"); }
+  else { p.textContent = state; }
+}
+
+function onAuthChange(){
+  const signedIn = isAdmin();
+  document.getElementById("adminSignedOut")?.classList.toggle("hidden", signedIn);
+  document.getElementById("adminSignedIn")?.classList.toggle("hidden", !signedIn);
+  document.getElementById("adminToolsCard")?.classList.toggle("hidden", !signedIn);
+  const em = document.getElementById("adminEmail");
+  if(em) em.textContent = supaSession?.user?.email || "—";
+  // Re-render visible sections so edit affordances appear/disappear
+  if(currentSection==="matchplay") renderMatchPlay();
+  if(currentSection==="oom") renderOOM();
+}
+
+/* ============================================================
+   MATCH PLAY — Laguna Lads 2026 Cup H1 (seed data)
+   Hard-coded for now (Supabase wiring is the next phase).
+   Top half of the bracket as supplied by Fa; bottom half + later
+   rounds will be filled in admin mode once Supabase is live.
+   ============================================================ */
+const MATCH_PLAY_SEED = {
+  cupName: "Laguna Lads 2026 Match Play Cup H1",
+  subtitle: "Knockout bracket · Classic Course · Blue tees only",
+  toc: [
+    "Draw: bye to lower HCPs, ChatGPT for the rest",
+    "Course: Classic Blue Tees ONLY",
+    "Players should arrange their own games within 30 days",
+    "Playing HCP = SGA = GB = Stroking. Players may decide to adjust on their own",
+    "Rain policy: game must be completed, unless mutually agreed by the players",
+    "Tie Policy: no ties except in the Final — count back rule applies (winner of the back nine wins)",
+    "Game must be recorded on GB for admin to update the results",
+    "Prize: TBC (no purse)",
+    "MP cup must finish by Jun 2026 so we can organise the second leg in H2 2026"
+  ],
+  rounds: [
+    { name: "First Round", matches: [
+        { a: "Asif", b: "AJ",     winner: "AJ",     score: "AS" },
+        { a: "Hide", b: "Carlos", winner: "Hide",   score: "" },
+        { a: "Dan",  b: "Will",   winner: "Dan",    score: "" },
+        { a: "Fa",   b: "Alex",   winner: "Fa",     score: "" },
+        { a: "Oli",  b: "Max",    winner: "Oli",    score: "3&2" },
+        { a: "Paul", b: "Colten", winner: "Colten", score: "" },
+        { a: "Amit", b: "Gerry",  winner: "Amit",   score: "1Up" },
+    ]},
+    { name: "Second Round", matches: [
+        { a: "AJ",   b: "Theo",   winner: "AJ",     score: "" },
+        { a: "Hide", b: "Tommy",  winner: "Hide",   score: "2&1" },
+        { a: "Dan",  b: "Sam K",  winner: "Sam K",  score: "" },
+        { a: "Fa",   b: "Pat",    winner: "Pat",    score: "" },
+        { a: "Oli",  b: "Jonas",  winner: "Jonas",  score: "" },
+        { a: "Colten",b: "Lee",   winner: "Colten", score: "4&2" },
+        { a: "Luke", b: "Julius", winner: "Julius", score: "" },
+        { a: "Amit", b: "Sig",    winner: "Sig",    score: "" },
+    ]},
+    { name: "Quarter Finals", matches: [
+        { a: "AJ",     b: "Hide",   winner: null, score: "" },
+        { a: "Sam K",  b: "Pat",    winner: null, score: "" },
+        { a: "Jonas",  b: "Colten", winner: null, score: "" },
+        { a: "Julius", b: "Sig",    winner: null, score: "" },
+    ]},
+    { name: "Semi Finals", matches: [
+        { a: "TBD", b: "TBD", winner: null, score: "" },
+        { a: "TBD", b: "TBD", winner: null, score: "" },
+    ]},
+    { name: "Final", matches: [
+        { a: "TBD", b: "TBD", winner: null, score: "" },
+    ]},
+  ],
+};
+
+/* OOM scoring table — points awarded by how far a player reached.
+   Default seed; will become admin-editable once Supabase is wired. */
+const OOM_RULES = {
+  pointsByExit: {
+    "Champion":       100,
+    "Final":           60,
+    "Semi Finals":     40,
+    "Quarter Finals":  25,
+    "Second Round":     8,
+    "First Round":      3,
+  },
+  description: [
+    "Points awarded by how far a player advances in the Match Play Cup.",
+    "Champion = 100, Runner-up (Final loser) = 60, Semi-Final losers = 40.",
+    "Quarter Final losers = 25, Second Round losers = 8, First Round losers = 3.",
+    "Players still alive in an unfinished round are listed as 'in progress' (no points yet).",
+    "The H2 cup will add to these totals to form the full-season Order of Merit.",
+  ],
+};
+
+/* ---------- Course catalog ----------
+   Pars confirmed by Fa for both courses. Locked — not editable.
+   Masters: front 4-5-4-4-3-4-5-3-4 (36) / back 4-5-3-4-4-5-4-3-4 (36) = 72
+   Classic: front 4-4-5-3-4-4-3-4-5 (36) / back 4-3-4-5-5-4-4-3-4 (36) = 72
+*/
+const COURSES = {
+  masters: {
+    name: "Laguna National — Masters",
+    pars: [4,5,4,4,3,4,5,3,4, 4,5,3,4,4,5,4,3,4],  // par 72
+  },
+  classic: {
+    name: "Laguna National — Classic",
+    pars: [4,4,5,3,4,4,3,4,5, 4,3,4,5,5,4,4,3,4],  // par 72
+  },
+};
+
+/* ---------- Stat definitions ----------
+   mode = "toggle" → Yes/No (max 1 per hole)
+   mode = "counter" → multiple per hole (Sand / Penalty / OB)
+*/
+const STAT_DEFS = [
+  // [key, label, ptsKey, polarity, isP3disabled, mode]
+  ["gir",  "GIR",                 "gir",       "good", false, "toggle"],
+  ["ud",   "Up & Down (par save)","upDn",      "good", false, "toggle"],
+  ["fw",   "FW hit",              "fw",        "good", true,  "toggle"],
+  ["sp",   "Short 1st putt",      "shortPutt", "bad",  false, "toggle"],
+  ["tp",   "3-putt",              "threePutt", "bad",  false, "toggle"],
+  ["sand", "Sand (each)",         "sand",      "bad",  false, "counter"],
+  ["pen",  "Penalty (each)",      "penalty",   "bad",  false, "counter"],
+  ["ob",   "OB (each)",           "ob",        "bad",  false, "counter"],
+];
+
+const DEFAULT_PTS = {
+  gir:1, upDn:1, fw:2, birdie:3, eagle:5,
+  sand:-1, shortPutt:-1, threePutt:-2,
+  doubleBogey:-2, tripleBogey:-3, doublePar:-4,
+  penalty:-2, ob:-3
+};
+
+/* All stats default ON; user can toggle */
+const DEFAULT_RULES_ON = {
+  gir:true, upDn:true, fw:true, sand:true, shortPutt:true,
+  threePutt:true, penalty:true, ob:true,
+  birdie:true, eagle:true,
+  doubleBogey:true, tripleBogey:true, doublePar:true,
+};
+
+const PLAYER_COLORS = ["var(--p1)","var(--p2)","var(--p3)","var(--p4)"];
+
+/* ---------- State ---------- */
+function blankHole(nPlayers){
+  const h = {scores: Array(nPlayers).fill(null), counters: {}};
+  STAT_DEFS.forEach(([k])=>{ h.counters[k] = Array(nPlayers).fill(0); });
+  return h;
+}
+function makePlayer(i){
+  const names = ["Fa","Player 2","Player 3","Player 4"];
+  return {
+    name: names[i] || ("Player "+(i+1)),
+    bonus:   { enabled: true,  threshold: 80, points: 10 },  // award if strokes < threshold
+    penalty: { enabled: false, threshold: 90, points: 5  },  // deduct if strokes > threshold
+  };
+}
+
+let state = null;
+function uuid(){
+  // tiny rfc4122-ish id; good enough for round IDs on a single device
+  return 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+    const r=Math.random()*16|0, v=c==='x'?r:(r&0x3|0x8); return v.toString(16);
+  });
+}
+function defaultState(){
+  const players = [makePlayer(0), makePlayer(1)];
+  return {
+    schemaVersion: 2,
+    // ---- Active round (in progress) ----
+    course: "masters",
+    pars: [...COURSES.masters.pars],
+    players,
+    stake: 5,
+    pts: {...DEFAULT_PTS},
+    rules: {...DEFAULT_RULES_ON},
+    holes: Array.from({length:18}, ()=>blankHole(players.length)),
+    cur: 0,
+    activeId: uuid(),
+    activeStartedAt: new Date().toISOString(),
+    // ---- Archive ----
+    history: [],            // newest first
+    showStats: false,       // opt-in lifetime stats panel on Rounds tab
+    // ---- UI ----
+    tab: "play",
+  };
+}
+
+function save(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){} }
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw){ state = defaultState(); return; }
+    const parsed = JSON.parse(raw);
+    state = {...defaultState(), ...parsed,
+      pts:{...DEFAULT_PTS, ...(parsed.pts||{})},
+      rules:{...DEFAULT_RULES_ON, ...(parsed.rules||{})},
+    };
+    // ---- Migrations from older saved state ----
+    // 1) Old `tee` enum on players → new per-player bonus object
+    state.players = state.players.map(p => {
+      let np = p;
+      if(!p.bonus){
+        const b = { enabled: true, threshold: 80, points: 10 };
+        if(p.tee === "hybrid")     { b.threshold = 77; }
+        else if(p.tee === "none")  { b.enabled = false; }
+        np = { name: p.name, bonus: b };
+      }
+      // Ensure `penalty` field exists (added in v2.1)
+      if(!np.penalty) np.penalty = { enabled: false, threshold: 90, points: 5 };
+      return np;
+    });
+    // 2) Old `doublePlus` rule/points → split into doubleBogey/tripleBogey/doublePar
+    if(parsed.rules && "doublePlus" in parsed.rules){
+      ["doubleBogey","tripleBogey","doublePar"].forEach(k => {
+        if(state.rules[k] === undefined) state.rules[k] = parsed.rules.doublePlus;
+      });
+      delete state.rules.doublePlus;
+    }
+    // 3) Lock pars to selected course (per user spec — pars are fixed per course)
+    state.pars = [...(COURSES[state.course]?.pars || COURSES.masters.pars)];
+
+    // 4) Ensure new history fields exist
+    if(!Array.isArray(state.history)) state.history = [];
+    if(typeof state.showStats !== "boolean") state.showStats = false;
+    if(!state.activeId) state.activeId = uuid();
+    if(!state.activeStartedAt) state.activeStartedAt = new Date().toISOString();
+
+    // sanity: every hole must match player count
+    const n = state.players.length;
+    state.holes = (state.holes||[]).slice(0,18);
+    while(state.holes.length<18) state.holes.push(blankHole(n));
+    state.holes = state.holes.map(h=>{
+      const fixed = blankHole(n);
+      if(h.scores) for(let i=0;i<n;i++) fixed.scores[i] = h.scores[i] ?? null;
+      if(h.counters) STAT_DEFS.forEach(([k])=>{
+        for(let i=0;i<n;i++) fixed.counters[k][i] = Math.min(20, (h.counters[k]?.[i] || 0));
+      });
+      return fixed;
+    });
+  }catch(e){
+    state = defaultState();
+  }
+}
+
+/* ---------- Round archive ----------
+   snapshot the active round into history, then start a fresh one with the
+   same setup (course, players, stake, rules, pts).
+*/
+function snapshotActive(){
+  return {
+    id: state.activeId,
+    startedAt: state.activeStartedAt,
+    archivedAt: new Date().toISOString(),
+    course: state.course,
+    courseName: COURSES[state.course]?.name || state.course,
+    pars: [...state.pars],
+    players: JSON.parse(JSON.stringify(state.players)),
+    stake: state.stake,
+    pts: {...state.pts},
+    rules: {...state.rules},
+    holes: JSON.parse(JSON.stringify(state.holes)),
+  };
+}
+function activeHasScores(){
+  return state.holes.some(h => h.scores.some(s => s != null));
+}
+function archiveAndStartNew(){
+  if(activeHasScores()){
+    state.history.unshift(snapshotActive());
+  }
+  // Reset just the in-progress fields; keep setup
+  const n = state.players.length;
+  state.holes = Array.from({length:18},()=>blankHole(n));
+  state.cur = 0;
+  state.activeId = uuid();
+  state.activeStartedAt = new Date().toISOString();
+}
+
+/* ---------- Backup: export / import ---------- */
+function buildBackup(){
+  return {
+    appVersion: "golf-hide-app-v2",
+    exportedAt: new Date().toISOString(),
+    state: state,
+  };
+}
+function exportRounds(){
+  const blob = new Blob([JSON.stringify(buildBackup(), null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const dt = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `golf-hide-backup-${dt}.json`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+  showToast("Backup downloaded");
+}
+function importRounds(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const parsed = JSON.parse(reader.result);
+      const incoming = parsed.state || parsed;
+      if(!incoming || !Array.isArray(incoming.history) || !Array.isArray(incoming.players)){
+        showToast("Not a valid backup file");
+        return;
+      }
+      const mode = confirm(
+        `Backup found:\n• ${incoming.history.length} archived round(s)\n• ${incoming.players.length} player(s)\n\nOK = Replace current data (current rounds will be lost)\nCancel = Merge (append archived rounds to your current history; current setup is kept)`
+      ) ? "replace" : "merge";
+      if(mode === "replace"){
+        state = {...defaultState(), ...incoming};
+        // Ensure required fields
+        if(!Array.isArray(state.history)) state.history = [];
+        if(typeof state.showStats!=="boolean") state.showStats = false;
+        if(!state.activeId) state.activeId = uuid();
+        if(!state.activeStartedAt) state.activeStartedAt = new Date().toISOString();
+        save(); renderAll(); showToast(`Restored ${state.history.length} round(s)`);
+      } else {
+        // Merge: prepend imported history (newest first), de-dupe by id
+        const existingIds = new Set(state.history.map(r=>r.id));
+        const additions = (incoming.history||[]).filter(r => r.id && !existingIds.has(r.id));
+        state.history = [...additions, ...state.history];
+        save(); renderAll(); showToast(`Merged ${additions.length} round(s)`);
+      }
+    }catch(e){
+      showToast("Could not read backup file");
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ---------- Math ----------
+   The "Of" variants take an explicit round-shaped object { holes, pars,
+   players, pts, rules }. The non-"Of" variants operate on the active state.
+*/
+function holePointsOf(round, holeIdx, who){
+  const h = round.holes[holeIdx];
+  const par = round.pars[holeIdx];
+  const score = h.scores[who];
+  let pts = 0;
+  STAT_DEFS.forEach(([k,_lbl,ptKey,_pol,p3dis,mode])=>{
+    if(!round.rules[ptKey]) return;
+    if(p3dis && par===3) return;            // FW doesn't score on par-3s
+    let n = h.counters[k]?.[who] || 0;
+    if(mode === "toggle") n = n>0 ? 1 : 0;
+    pts += n * (round.pts[ptKey]||0);
+  });
+  if(score!=null){
+    const d = score - par;
+    if(d <= -2 && round.rules.eagle)                          pts += round.pts.eagle;
+    else if(d === -1 && round.rules.birdie)                   pts += round.pts.birdie;
+    else if(score >= 2*par && round.rules.doublePar)          pts += round.pts.doublePar;
+    else if(d === 3 && round.rules.tripleBogey)               pts += round.pts.tripleBogey;
+    else if(d === 2 && round.rules.doubleBogey)               pts += round.pts.doubleBogey;
+  }
+  return pts;
+}
+function totalsOf(round, who){
+  let pts=0, strokes=0, holesPlayed=0;
+  for(let i=0;i<18;i++){
+    const s = round.holes[i].scores[who];
+    if(s!=null){ strokes+=s; holesPlayed++; }
+    pts += holePointsOf(round, i, who);
+  }
+  let bonus=0;
+  const parts = [];
+  if(holesPlayed===18){
+    const b   = round.players[who].bonus   || {};
+    const pen = round.players[who].penalty || {};
+    if(b.enabled && (b.threshold||0) > 0 && strokes < b.threshold){
+      const v = +b.points || 0;
+      bonus += v;
+      parts.push(`Break ${b.threshold} +${v}`);
+    }
+    if(pen.enabled && (pen.threshold||0) > 0 && strokes > pen.threshold){
+      const v = +pen.points || 0;
+      bonus -= v;
+      parts.push(`Over ${pen.threshold} −${v}`);
+    }
+  }
+  return { pts: pts+bonus, strokes, holesPlayed, bonus, bonusLabel: parts.join(" · ") };
+}
+function settlementOf(round){
+  const n = round.players.length;
+  const t = round.players.map((_,i)=>totalsOf(round, i));
+  const stake = Math.max(0, +round.stake||0);
+  const nets = Array(n).fill(0);
+  const matrix = Array.from({length:n},()=>Array(n).fill(0));
+  for(let i=0;i<n;i++) for(let j=0;j<n;j++){
+    if(i===j) continue;
+    matrix[i][j] = (t[i].pts - t[j].pts) * stake;
+    nets[i] += matrix[i][j];
+  }
+  return { totals:t, nets, matrix, stake };
+}
+// Back-compat shims for active round
+function holePoints(holeIdx, who){ return holePointsOf(state, holeIdx, who); }
+function totals(who){ return totalsOf(state, who); }
+function settlement(){ return settlementOf(state); }
+
+/* ---------- Lifetime stats (across archived rounds) ---------- */
+function lifetimeStats(){
+  // aggregate by exact player name
+  const byName = {};       // name → {rounds, totalPts, totalNet, wins, ptsArr:[], strokesArr:[]}
+  state.history.forEach(r=>{
+    const s = settlementOf(r);
+    // winner = player with max points; ties give a fractional win
+    let maxPts = -Infinity, winners = [];
+    s.totals.forEach((tt,i)=>{
+      if(tt.pts > maxPts){ maxPts = tt.pts; winners=[i]; }
+      else if(tt.pts === maxPts){ winners.push(i); }
+    });
+    r.players.forEach((p,i)=>{
+      const k = p.name;
+      if(!byName[k]) byName[k] = {name:k, rounds:0, totalPts:0, totalNet:0, wins:0, ptsArr:[], strokesArr:[]};
+      const b = byName[k];
+      b.rounds++;
+      b.totalPts += s.totals[i].pts;
+      b.totalNet += s.nets[i];
+      b.ptsArr.push(s.totals[i].pts);
+      if(s.totals[i].holesPlayed === 18) b.strokesArr.push(s.totals[i].strokes);
+      if(winners.includes(i)) b.wins += 1/winners.length;
+    });
+  });
+  return {
+    rounds: state.history.length,
+    byName: Object.values(byName).sort((a,b)=>b.totalNet-a.totalNet),
+  };
+}
+
+/* ---------- DOM helpers ---------- */
+function $(sel,root=document){return root.querySelector(sel)}
+function $$(sel,root=document){return [...root.querySelectorAll(sel)]}
+function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e}
+function fmt(n){
+  const v = Number(n);
+  if(!Number.isFinite(v)) return "0";
+  return v>0?("+"+v):(""+v);
+}
+function money(n){
+  const v = Number(n);
+  if(!Number.isFinite(v)) return "$0";
+  const s = v>=0 ? "+" : "−";
+  return s+"$"+Math.abs(v).toFixed(0);
+}
+function showToast(msg){
+  const t=$("#toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(showToast._t); showToast._t=setTimeout(()=>t.classList.remove("show"),1100);
+}
+
+/* ---------- Rendering: leaderboard header ---------- */
+function renderHeader(){
+  $("#courseTitle").textContent = COURSES[state.course]?.name || "Custom course";
+  const cur = Number.isInteger(state.cur) ? state.cur : 0;
+  const par = state.pars?.[cur] ?? "—";
+  $("#lbSub").textContent = `Hole ${cur+1} · Par ${par} · $${state.stake||0}/pt`;
+  const settle = settlement();
+  // sort by points desc for ranking
+  const ranked = state.players.map((p,i)=>({p,i,pts:settle.totals[i].pts,net:settle.nets[i]}))
+                              .sort((a,b)=> b.pts-a.pts);
+  const wrap = $("#lbRows");
+  wrap.innerHTML = "";
+  ranked.forEach((r,rk)=>{
+    const row = el("div","lb-row");
+    row.innerHTML = `
+      <span class="rank">${rk+1}</span>
+      <span class="name"><span class="pdot" style="background:${PLAYER_COLORS[r.i]}"></span>${escapeHtml(r.p.name)}</span>
+      <span class="pts">${fmt(r.pts.pts)}</span>
+      <span class="money">${money(r.net)}</span>`;
+    wrap.appendChild(row);
+  });
+}
+
+/* ---------- Rendering: hole jump bar ---------- */
+function renderJump(){
+  const wrap = $("#holeJump"); wrap.innerHTML="";
+  for(let i=0;i<18;i++){
+    const b = el("button"); b.textContent = i+1;
+    if(i===state.cur) b.classList.add("cur");
+    else if(state.holes[i].scores.every(s=>s!=null)) b.classList.add("done");
+    b.addEventListener("click",()=>{state.cur=i; save(); renderAll();});
+    wrap.appendChild(b);
+  }
+}
+
+/* ---------- Rendering: hole card per player ---------- */
+function renderPlayers(){
+  const i = Number.isInteger(state.cur) ? state.cur : 0;
+  const par = state.pars?.[i] ?? 4;
+  const isP3 = par===3;
+  $("#holeNo").textContent = `Hole ${i+1}`;
+  // Par is locked to course — display only, not editable
+  $("#parInput").textContent = "Par " + par;
+  $("#prevHole").disabled = i===0;
+  $("#nextHole").disabled = i===17;
+
+  const wrap = $("#playerCards"); wrap.innerHTML = "";
+  state.players.forEach((p,who)=>{
+    const h = state.holes[i];
+    const pts = holePoints(i,who);
+    const score = h.scores[who];
+    const card = el("div","player-card");
+    card.innerHTML = `
+      <div class="ph">
+        <div class="nm"><span class="pdot" style="background:${PLAYER_COLORS[who]}"></span>${escapeHtml(p.name)}</div>
+        <div class="pts ${pts>0?'pos':pts<0?'neg':'zero'}">${fmt(pts)} pts</div>
+      </div>
+      <div class="score-row">
+        <input class="score" type="number" inputmode="numeric" min="1" max="15"
+               placeholder="score" data-who="${who}" value="${score??""}" />
+        <div class="stepper">
+          <button class="ssub" data-who="${who}" aria-label="decrease score">−</button>
+          <button class="sadd" data-who="${who}" aria-label="increase score">+</button>
+        </div>
+      </div>
+      <div style="margin-bottom:8px">${autoChip(score,par)}</div>
+      <div class="ctrs">${STAT_DEFS.map((d,j)=>renderCtr(i,who,j,isP3)).join("")}</div>
+    `;
+    wrap.appendChild(card);
+  });
+}
+function renderCtr(holeIdx,who,defIdx,isP3){
+  const [k,lbl,ptKey,pol,p3dis,mode] = STAT_DEFS[defIdx];
+  if(!state.rules[ptKey]) return "";
+  const n = state.holes[holeIdx].counters[k]?.[who] || 0;
+  const dis = (p3dis && isP3);
+  if(dis){
+    return `<div class="ctr dis"><span class="lbl">${lbl}</span><div class="ctrls"><span class="num">—</span></div></div>`;
+  }
+  if(mode === "toggle"){
+    const on = n>0;
+    return `
+      <div class="ctr toggle-ctr ${pol} ${on?'active':''}" data-toggle data-who="${who}" data-k="${k}" role="button" aria-pressed="${on}">
+        <span class="lbl">${lbl}</span>
+        <span class="num">${on?'✓':'·'}</span>
+      </div>`;
+  }
+  // counter mode
+  return `
+    <div class="ctr ${pol} ${n>0?'active':''}">
+      <span class="lbl">${lbl}</span>
+      <div class="ctrls">
+        <button class="cmin" data-who="${who}" data-k="${k}" aria-label="decrease ${lbl}">−</button>
+        <span class="num">${n}</span>
+        <button class="cpls" data-who="${who}" data-k="${k}" aria-label="increase ${lbl}">+</button>
+      </div>
+    </div>`;
+}
+function autoChip(score,par){
+  if(score==null) return `<span class="auto-chip">no score yet</span>`;
+  if(!Number.isFinite(par)) return `<span class="auto-chip">${score}</span>`;
+  const d = score - par;
+  if(d<=-2) return `<span class="auto-chip eagle">Eagle</span>`;
+  if(d===-1) return `<span class="auto-chip birdie">Birdie</span>`;
+  if(d===0) return `<span class="auto-chip">Par</span>`;
+  if(d===1) return `<span class="auto-chip">Bogey</span>`;
+  return `<span class="auto-chip dbl">Dbl+ (+${d})</span>`;
+}
+function escapeHtml(s){
+  if(s==null) return "";
+  return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+
+/* ---------- Rendering: settings tab ---------- */
+function renderSettings(){
+  // Course select
+  $("#courseSel").value = state.course;
+  // Players
+  const list = $("#playerList"); list.innerHTML = "";
+  state.players.forEach((p,i)=>{
+    const row = el("div","player-input");
+    row.innerHTML = `
+      <span class="pdot" style="background:${PLAYER_COLORS[i]}"></span>
+      <div>
+        <input class="text" type="text" data-pname="${i}" value="${escapeHtml(p.name)}" placeholder="Player ${i+1}" />
+        <div class="bonus-row ${p.bonus.enabled?'on':''}">
+          <button class="bonus-tog" data-bonus-enable="${i}" aria-pressed="${p.bonus.enabled}">
+            ${p.bonus.enabled ? '✓ Bonus' : 'Bonus off'}
+          </button>
+          <span class="small">Break</span>
+          <input class="num" type="number" inputmode="numeric" min="0" step="1" data-bonus-thr="${i}" value="${p.bonus.threshold}" ${p.bonus.enabled?'':'disabled'} />
+          <span class="small">for</span>
+          <input class="num" type="number" inputmode="numeric" step="1" data-bonus-pts="${i}" value="${p.bonus.points}" ${p.bonus.enabled?'':'disabled'} />
+          <span class="small">pts</span>
+        </div>
+        <div class="bonus-row penalty-row ${p.penalty?.enabled?'on':''}">
+          <button class="bonus-tog" data-pen-enable="${i}" aria-pressed="${!!p.penalty?.enabled}">
+            ${p.penalty?.enabled ? '✓ Penalty' : 'Penalty off'}
+          </button>
+          <span class="small">Above</span>
+          <input class="num" type="number" inputmode="numeric" min="0" step="1" data-pen-thr="${i}" value="${p.penalty?.threshold ?? 90}" ${p.penalty?.enabled?'':'disabled'} />
+          <span class="small">lose</span>
+          <input class="num" type="number" inputmode="numeric" min="0" step="1" data-pen-pts="${i}" value="${p.penalty?.points ?? 5}" ${p.penalty?.enabled?'':'disabled'} />
+          <span class="small">pts</span>
+        </div>
+      </div>
+      <button class="x" data-prm="${i}" ${state.players.length<=2?"disabled style='opacity:.35'":""} aria-label="remove player">×</button>
+    `;
+    list.appendChild(row);
+  });
+  $("#addPlayer").style.display = state.players.length>=4 ? "none" : "";
+
+  // Stake
+  $("#stakeInput").value = state.stake;
+  const ss = $("#settleStake"); if(ss) ss.textContent = state.stake;
+
+  // Rules grid
+  const rg = $("#rulesGrid"); rg.innerHTML = "";
+  const ruleItems = [
+    ["gir","GIR (Yes/No)","good"],
+    ["upDn","Up & Down — par save (Yes/No)","good"],
+    ["fw","FW hit (Yes/No, par-3 excluded)","good"],
+    ["birdie","Birdie","good"],
+    ["eagle","Eagle","good"],
+    ["sand","Sand (each)","bad"],
+    ["shortPutt","Short 1st putt (Yes/No)","bad"],
+    ["threePutt","3-putt (Yes/No)","bad"],
+    ["doubleBogey","Double bogey (+2)","bad"],
+    ["tripleBogey","Triple bogey (+3)","bad"],
+    ["doublePar","Double par (≥ 2× par)","bad"],
+    ["penalty","Penalty (each)","bad"],
+    ["ob","OB (each)","bad"],
+  ];
+  ruleItems.forEach(([k,label,pol])=>{
+    const on = !!state.rules[k];
+    const item = el("div", `rule ${pol} ${on?"on":""}`);
+    item.innerHTML = `
+      <span class="lbl">${label}</span>
+      <input class="num" type="number" data-pts="${k}" value="${state.pts[k]}" />
+      <div class="toggle" data-rule="${k}"><div class="knob"></div></div>
+    `;
+    rg.appendChild(item);
+  });
+
+  // Stats toggle
+  const stRow = $("#statsToggleRow");
+  if(stRow) stRow.classList.toggle("on", !!state.showStats);
+}
+
+/* ---------- Rendering: rounds (history) tab ---------- */
+function fmtDateShort(iso){
+  try{
+    if(!iso) return "Unknown date";
+    const d = new Date(iso);
+    if(isNaN(d.getTime())) return "Unknown date";
+    const day = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
+    const month = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()];
+    return `${day} ${d.getDate()} ${month}`;
+  }catch(e){ return "Unknown date"; }
+}
+function renderRounds(){
+  // Stats panel visibility
+  const statsCard = $("#statsCard");
+  statsCard.classList.toggle("hidden", !state.showStats);
+  if(state.showStats){
+    const lt = lifetimeStats();
+    const tot = lt.byName.reduce((acc,b)=>{
+      acc.totalNet += Math.abs(b.totalNet); return acc;
+    }, {totalNet:0});
+    $("#statsTopline").innerHTML = `
+      <div class="sbox"><div class="lbl">Rounds played</div><div class="val">${lt.rounds}</div></div>
+      <div class="sbox"><div class="lbl">Players tracked</div><div class="val">${lt.byName.length}</div></div>
+      <div class="sbox"><div class="lbl">Total $ exchanged</div><div class="val">$${(tot.totalNet/2).toFixed(0)}</div></div>
+      <div class="sbox"><div class="lbl">Top earner</div><div class="val">${lt.byName[0] ? escapeHtml(lt.byName[0].name) : "—"}</div></div>
+    `;
+    $("#statsByPlayer").innerHTML = `
+      <thead><tr><th>Player</th><th>Rounds</th><th>Wins</th><th>Avg pts</th><th>Net $</th></tr></thead>
+      <tbody>${lt.byName.map(b=>{
+        const wins = (b.wins||0);
+        const winsTxt = wins.toFixed(wins===Math.round(wins)?0:1);
+        const avg = b.rounds>0 ? (b.totalPts/b.rounds).toFixed(1) : "—";
+        return `
+        <tr>
+          <td>${escapeHtml(b.name)}</td>
+          <td>${b.rounds}</td>
+          <td>${winsTxt}</td>
+          <td>${avg}</td>
+          <td class="${b.totalNet>0?'pos':b.totalNet<0?'neg':''}">${money(b.totalNet)}</td>
+        </tr>`;
+      }).join("")}</tbody>
+    `;
+  }
+
+  // Past rounds list
+  const wrap = $("#roundsList");
+  const sub = $("#roundsSub");
+  wrap.innerHTML = "";
+  if(state.history.length === 0){
+    sub.textContent = "No archived rounds yet — finish your first round and tap \"Start new round\" in Settings to archive it.";
+    return;
+  }
+  sub.textContent = `${state.history.length} round${state.history.length===1?"":"s"} archived. Tap a round to expand.`;
+  state.history.forEach((r, idx)=>{
+    const s = settlementOf(r);
+    const order = r.players.map((_,i)=>i).sort((a,b)=>s.totals[b].pts - s.totals[a].pts);
+    const winnerIdx = order[0];
+    const winner = r.players[winnerIdx];
+    const winnerNet = s.nets[winnerIdx];
+    const card = el("div","round-card");
+    card.dataset.ridx = idx;
+    card.innerHTML = `
+      <div class="rc-head">
+        <div>
+          <div class="rc-title">${fmtDateShort(r.archivedAt)} · ${escapeHtml(r.courseName||r.course)}</div>
+          <div class="rc-when">${r.players.map(p=>escapeHtml(p.name)).join(" · ")}</div>
+        </div>
+        <div class="rc-winner">
+          ${escapeHtml(winner.name)} won<br/>
+          <span style="font-size:11px;color:var(--muted);font-weight:600">${money(winnerNet)} at $${r.stake}/pt</span>
+        </div>
+      </div>
+      <div class="rc-strip">${order.map(i=>{
+        const tt = s.totals[i], net = s.nets[i];
+        return `<span class="pchip"><span class="pdot" style="background:${PLAYER_COLORS[i]};width:6px;height:6px;border-radius:50%"></span>${escapeHtml(r.players[i].name)} <b>${fmt(tt.pts)}</b> <span style="color:${net>0?'var(--pos)':net<0?'var(--neg)':'var(--muted)'}">${money(net)}</span></span>`;
+      }).join("")}</div>
+      <button class="rc-toggle" data-expand="${idx}">Show details ▾</button>
+      <div class="rc-expand">
+        <table class="summary-tbl">
+          <thead><tr><th>Player</th><th>Holes</th><th>Strokes</th><th>Pts</th><th>Net</th></tr></thead>
+          <tbody>${order.map(i=>{
+            const tt = s.totals[i], net = s.nets[i], p = r.players[i];
+            return `<tr>
+              <td><span class="pdot" style="display:inline-block;background:${PLAYER_COLORS[i]};width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle"></span>${escapeHtml(p.name)}${tt.bonusLabel?` <span class="small">${tt.bonusLabel}</span>`:""}</td>
+              <td>${tt.holesPlayed}/18</td>
+              <td>${tt.strokes||"—"}</td>
+              <td class="${tt.pts>0?'pos':tt.pts<0?'neg':''}">${fmt(tt.pts)}</td>
+              <td class="${net>0?'pos':net<0?'neg':''}">${money(net)}</td>
+            </tr>`;
+          }).join("")}</tbody>
+        </table>
+        <div class="rc-actions">
+          <button class="rc-del" data-del-round="${idx}">Delete this round</button>
+        </div>
+      </div>
+    `;
+    wrap.appendChild(card);
+  });
+}
+
+/* ---------- Rendering: leaderboard tab ---------- */
+function renderBoard(){
+  const settle = settlement();
+  const t = settle.totals;
+  // Sort by points desc
+  const order = state.players.map((_,i)=>i).sort((a,b)=>t[b].pts-t[a].pts);
+
+  const tbl = $("#boardTbl");
+  tbl.innerHTML = `
+    <thead><tr><th>Player</th><th>Holes</th><th>Strokes</th><th>Pts</th><th>Net</th></tr></thead>
+    <tbody>${order.map((i,rk)=>{
+      const p = state.players[i], tt = t[i];
+      return `<tr>
+        <td><span class="pdot" style="display:inline-block;background:${PLAYER_COLORS[i]};width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle"></span>${escapeHtml(p.name)}${tt.bonusLabel?` <span class="small">${tt.bonusLabel}</span>`:""}</td>
+        <td>${tt.holesPlayed}/18</td>
+        <td>${tt.strokes||"—"}</td>
+        <td class="${tt.pts>0?'pos':tt.pts<0?'neg':''}">${fmt(tt.pts)}</td>
+        <td class="${settle.nets[i]>0?'pos':settle.nets[i]<0?'neg':''}">${money(settle.nets[i])}</td>
+      </tr>`;
+    }).join("")}</tbody>
+  `;
+
+  // Settlement: per-player full breakdown
+  const sb = $("#settleBox"); sb.innerHTML = "";
+  order.forEach(i=>{
+    const p = state.players[i];
+    const lines = state.players.map((q,j)=>{
+      if(j===i) return null;
+      const v = settle.matrix[i][j];
+      return v===0 ? null
+        : `<span style="color:var(--muted)">vs ${escapeHtml(q.name)}</span> <b>${money(v)}</b>`;
+    }).filter(Boolean);
+    const net = settle.nets[i];
+    const cls = net>0?"pos":net<0?"neg":"";
+    const ln = el("div","ln "+cls);
+    ln.innerHTML = `
+      <span><span class="pdot" style="display:inline-block;background:${PLAYER_COLORS[i]};width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle"></span><b>${escapeHtml(p.name)}</b> ${lines.length?'<span class="small">('+lines.join(" · ")+')</span>':''}</span>
+      <b>${money(net)}</b>`;
+    sb.appendChild(ln);
+  });
+
+  // Round summary
+  const sum = $("#summaryTbl");
+  sum.innerHTML = `
+    <thead><tr><th>Stat</th>${state.players.map(p=>`<th>${escapeHtml(p.name)}</th>`).join("")}</tr></thead>
+    <tbody>
+      ${statRow("Holes scored", i=>`${t[i].holesPlayed}/18`)}
+      ${statRow("Strokes", i=>t[i].strokes||"—")}
+      ${statRow("Round adjustment", i=>t[i].bonusLabel?`${fmt(t[i].bonus)} (${t[i].bonusLabel})`:"—")}
+      ${statRow("Total points", i=>{const c=t[i].pts>0?'pos':t[i].pts<0?'neg':'';return `<span class="${c}">${fmt(t[i].pts)}</span>`;})}
+    </tbody>
+  `;
+}
+function statRow(label, fn){
+  return `<tr><td>${label}</td>${state.players.map((_,i)=>`<td>${fn(i)}</td>`).join("")}</tr>`;
+}
+
+/* ---------- Tabs (Game sub-nav) ---------- */
+function setTab(name){
+  state.tab = name; save();
+  $$(".tab").forEach(t=>t.classList.toggle("cur", t.dataset.tab===name));
+  $("#tab-play").classList.toggle("hidden", name!=="play");
+  $("#tab-board").classList.toggle("hidden", name!=="board");
+  $("#tab-rounds").classList.toggle("hidden", name!=="rounds");
+  $("#tab-settings").classList.toggle("hidden", name!=="settings");
+  if(name==="board") renderBoard();
+  if(name==="rounds") renderRounds();
+  if(name==="settings") renderSettings();
+}
+
+/* ---------- Section nav (top-level: Home / Game / Match Play / OOM) ---------- */
+let currentSection = "home";
+let mpCurrentRoundIdx = 0;
+let mpView = "bracket";   // "bracket" | "list"
+function setSection(name){
+  currentSection = name;
+  $$("#sectionNav button").forEach(b=>b.classList.toggle("cur", b.dataset.section===name));
+  $("#section-home").classList.toggle("hidden", name!=="home");
+  $("#section-game").classList.toggle("hidden", name!=="game");
+  $("#section-matchplay").classList.toggle("hidden", name!=="matchplay");
+  $("#section-oom").classList.toggle("hidden", name!=="oom");
+  $("#section-admin").classList.toggle("hidden", name!=="admin");
+  if(name==="home") renderDashboard();
+  if(name==="matchplay") renderMatchPlay();
+  if(name==="oom") renderOOM();
+  if(name==="admin") onAuthChange();   // refresh admin tools visibility
+  try{ window.scrollTo({top:0,behavior:"instant"}); }catch(e){ window.scrollTo(0,0); }
+}
+
+/* ---------- Render: Dashboard ---------- */
+function renderDashboard(){
+  // Show "Resume current game" only if active round has any scores
+  const hasActive = activeHasScores();
+  const resumeBtn = $("#heroResumeGame");
+  resumeBtn.style.display = hasActive ? "block" : "none";
+
+  // Game sub-tag
+  const playerNames = state.players.map(p=>p.name).join(" · ");
+  const courseName  = COURSES[state.course]?.name || "—";
+  if(hasActive){
+    const done = state.holes.filter(h=>h.scores.every(s=>s!=null)).length;
+    $("#dashGameSub").textContent = `Current round: ${courseName} · ${playerNames} · ${done}/18 holes scored`;
+  } else {
+    $("#dashGameSub").textContent = `Set up players, course (${COURSES.masters.name} / Classic), rules, and stake`;
+  }
+
+  // Match Play sub-tag — match counts
+  const mp = getMatchPlay();
+  const allMatches = mp.rounds.flatMap(r=>r.matches);
+  const decided = allMatches.filter(m=>m.winner).length;
+  const total = allMatches.length;
+  $("#dashMpSub").textContent = `${mp.cupName} · ${decided}/${total} matches decided`;
+
+  // OOM sub-tag — placeholder until file updated
+  const stand = computeOOM();
+  const top = stand.find(s=>s.points!==null);
+  $("#dashOomSub").textContent = top
+    ? `${stand.length} players tracked · Top: ${top.player} (${top.points} pts)`
+    : `${stand.length} players · cup in progress`;
+}
+
+/* ---------- Render: Match Play ---------- */
+function renderMatchPlay(){
+  const data = getMatchPlay();
+  $("#mpTitle").innerHTML = escapeHtml(data.cupName) + (isAdmin()?' <span class="admin-badge">Admin</span>':"");
+  $("#mpSub").textContent   = data.subtitle;
+
+  // TOC
+  const tocList = $("#mpToc"); tocList.innerHTML = "";
+  data.toc.forEach(line=>{
+    const li = el("li"); li.textContent = line; tocList.appendChild(li);
+  });
+
+  // View toggle
+  $$('.mp-view-toggle button').forEach(b=>b.classList.toggle('cur', b.dataset.mpView===mpView));
+  $("#mpBracketView").classList.toggle("hidden", mpView!=="bracket");
+  $("#mpListView").classList.toggle("hidden", mpView!=="list");
+
+  if(mpView === "bracket") renderBracketSVG();
+  else renderMatchPlayList();
+}
+
+function renderMatchPlayList(){
+  const data = getMatchPlay();
+  const admin = isAdmin();
+  const picker = $("#mpRoundPicker"); picker.innerHTML = "";
+  data.rounds.forEach((rd, idx)=>{
+    const b = el("button");
+    b.textContent = rd.name;
+    if(idx === mpCurrentRoundIdx) b.classList.add("cur");
+    if(rd.matches.some(m=>m.winner)) b.classList.add("done");
+    b.addEventListener("click", ()=>{ mpCurrentRoundIdx = idx; renderMatchPlay(); });
+    picker.appendChild(b);
+  });
+  const wrap = $("#mpBracket"); wrap.innerHTML = "";
+  const cur = data.rounds[mpCurrentRoundIdx];
+  const box = el("div","mp-round");
+  box.innerHTML = `<h3>${escapeHtml(cur.name)} — ${cur.matches.length} match${cur.matches.length===1?"":"es"}</h3>`;
+  cur.matches.forEach((m, mi)=>{
+    const aIsW = m.winner === m.a;
+    const bIsW = m.winner === m.b;
+    const aTbd = m.a==="TBD" || /^Winner /.test(m.a);
+    const bTbd = m.b==="TBD" || /^Winner /.test(m.b);
+    const mid = m.winner
+      ? `<div class="vs">def${m.score?` ${escapeHtml(m.score)}`:""}</div>`
+      : `<div class="vs">vs</div>`;
+    const row = el("div", "mp-match" + (admin?" editable":""));
+    if(admin){ row.dataset.editMatch = `${mpCurrentRoundIdx}.${mi}`; }
+    row.innerHTML = `
+      <div class="pl ${aIsW?'win':(m.winner?'lose':'')} ${aTbd?'tbd':''}">${escapeHtml(m.a)}</div>
+      ${mid}
+      <div class="pl ${bIsW?'win':(m.winner?'lose':'')} ${bTbd?'tbd':''}">${escapeHtml(m.b)}</div>
+    `;
+    box.appendChild(row);
+  });
+  wrap.appendChild(box);
+}
+
+/* ---------- Render: SVG bracket (visual tree) ---------- */
+function renderBracketSVG(){
+  const data = getMatchPlay();
+  const COL_W = 150;
+  const BOX_W = 128;
+  const BOX_H = 44;
+  const GAP_Y = 10;
+  const PAD_TOP = 26;
+  const PAD_X   = 10;
+
+  // Compute vertical centers per match per column.
+  // Strategy: R1 boxes evenly spaced. For later rounds, each match is centred between
+  // its two "feeder" matches in the prior round (where applicable), otherwise stacked.
+  const cols = data.rounds.map(r => r.matches.slice());
+  const yByCol = [];        // yByCol[col][i] = centre y of match i in that column
+
+  // R1: evenly stacked
+  cols[0].forEach((_, i) => {
+    yByCol[0] = yByCol[0] || [];
+    yByCol[0][i] = PAD_TOP + i*(BOX_H+GAP_Y) + BOX_H/2;
+  });
+
+  // For subsequent columns, position each box between its assumed pair of feeders.
+  // Mapping: we know R2 has the same number of matches as R1 + extra (some byes).
+  // Simpler approach: stack each column evenly too, but with bigger spacing so it
+  // visually pairs up. We'll compute spacing per column so each column has same total height.
+  const r1Count = cols[0].length;
+  const totalHeight = PAD_TOP + r1Count*(BOX_H+GAP_Y);
+
+  for(let c=1; c<cols.length; c++){
+    const n = cols[c].length || 1;
+    const colHeight = totalHeight - PAD_TOP;
+    const sliceHeight = colHeight / Math.max(n,1);
+    yByCol[c] = [];
+    for(let i=0;i<n;i++){
+      yByCol[c][i] = PAD_TOP + sliceHeight*(i+0.5);
+    }
+  }
+
+  // Add a "Champion" column (just text)
+  const totalCols = cols.length + 1;
+  const svgWidth  = PAD_X*2 + totalCols*COL_W;
+  const svgHeight = totalHeight + 30;
+
+  // Header (column labels) + boxes
+  let svg = `<svg class="mp-bracket-svg" viewBox="0 0 ${svgWidth} ${svgHeight}" width="${svgWidth}" height="${svgHeight}">`;
+
+  // Labels
+  data.rounds.forEach((r, c) => {
+    const x = PAD_X + c*COL_W + COL_W/2;
+    svg += `<text class="col-label" x="${x}" y="16" text-anchor="middle">${escapeHtml(r.name)}</text>`;
+  });
+  svg += `<text class="col-label" x="${PAD_X + cols.length*COL_W + COL_W/2}" y="16" text-anchor="middle">Champion</text>`;
+
+  // Connecting lines (between rounds): each match in col c+1 connects to its 2 feeders in col c
+  for(let c=0; c<cols.length-1; c++){
+    const fromYs = yByCol[c];
+    const toYs   = yByCol[c+1];
+    const x1 = PAD_X + c*COL_W + BOX_W + 0;
+    const x2 = PAD_X + (c+1)*COL_W;
+    // Pair feeders: take ceil(fromYs.length / toYs.length) per slot
+    const perSlot = Math.max(1, Math.ceil(fromYs.length / toYs.length));
+    for(let j=0;j<toYs.length;j++){
+      const feeders = fromYs.slice(j*perSlot, (j+1)*perSlot);
+      feeders.forEach(fy => {
+        const ty = toYs[j];
+        const mx = x1 + (x2-x1)/2;
+        svg += `<path class="conn" d="M${x1},${fy} L${mx},${fy} L${mx},${ty} L${x2},${ty}"/>`;
+      });
+    }
+  }
+
+  // Match boxes
+  const admin = isAdmin();
+  cols.forEach((matches, c) => {
+    const x = PAD_X + c*COL_W;
+    matches.forEach((m, i) => {
+      const y = yByCol[c][i] - BOX_H/2;
+      const isTbdA = m.a==="TBD" || /^Winner /.test(m.a);
+      const isTbdB = m.b==="TBD" || /^Winner /.test(m.b);
+      const aClass = m.winner === m.a ? "name-win" : (m.winner ? "name-lose" : (isTbdA ? "name-tbd" : "name-a"));
+      const bClass = m.winner === m.b ? "name-win" : (m.winner ? "name-lose" : (isTbdB ? "name-tbd" : "name-b"));
+      // Wrap each match in a <g data-edit-match="c.i"> if admin so taps open the modal
+      if(admin) svg += `<g data-edit-match="${c}.${i}" style="cursor:pointer">`;
+      svg += `<rect class="box" x="${x}" y="${y}" width="${BOX_W}" height="${BOX_H}" rx="6"${admin?' style="fill:#fffef5"':''}/>`;
+      svg += `<line class="box-line" x1="${x}" y1="${y+BOX_H/2}" x2="${x+BOX_W}" y2="${y+BOX_H/2}"/>`;
+      svg += `<text class="${aClass}" x="${x+8}" y="${y+15}" text-anchor="start">${escapeHtml(m.a)}</text>`;
+      svg += `<text class="${bClass}" x="${x+8}" y="${y+BOX_H-7}" text-anchor="start">${escapeHtml(m.b)}</text>`;
+      if(m.score){
+        svg += `<text class="score-tag" x="${x+BOX_W-6}" y="${y+BOX_H/2-3}" text-anchor="end">${escapeHtml(m.score)}</text>`;
+      }
+      if(admin) svg += `</g>`;
+    });
+  });
+
+  // Champion box (rightmost column)
+  const champX = PAD_X + cols.length*COL_W;
+  const champY = totalHeight/2 - 20;
+  const finalRound = data.rounds.find(r => r.name === "Final");
+  const champion = finalRound?.matches[0]?.winner || null;
+  svg += `<rect class="champion-box" x="${champX}" y="${champY}" width="${BOX_W}" height="${BOX_H}" rx="8"/>`;
+  svg += `<text class="champion-text" x="${champX+BOX_W/2}" y="${champY+BOX_H/2+5}" text-anchor="middle">${escapeHtml(champion || "TBD")}</text>`;
+  // Connecting line from Final to Champion box
+  if(cols.length>0){
+    const lastYs = yByCol[cols.length-1];
+    if(lastYs && lastYs[0]){
+      const fy = lastYs[0];
+      const fx = PAD_X + (cols.length-1)*COL_W + BOX_W;
+      const ty = champY + BOX_H/2;
+      const mx = fx + (champX-fx)/2;
+      svg += `<path class="conn" d="M${fx},${fy} L${mx},${fy} L${mx},${ty} L${champX},${ty}"/>`;
+    }
+  }
+
+  svg += `</svg>`;
+  $("#mpBracketScroll").innerHTML = svg;
+}
+
+/* ---------- Render: OOM ---------- */
+function computeOOM(){
+  // For each player, find the deepest round they reached.
+  // A player "reached" a round if they appear in that round (as a or b)
+  // OR if they won a match in the previous round.
+  // Their "exit" = first round name where they lost. If they win every match they appear in
+  // and the bracket isn't finished, they're "in progress".
+  const data = getMatchPlay();
+  const oomCfg = getOOM();
+  const rounds = data.rounds;
+  const allPlayers = new Set();
+  const exitRound = {};         // player → round name where they lost
+  const stillAlive = new Set();
+
+  // Walk rounds in order
+  rounds.forEach((rd, ri) => {
+    rd.matches.forEach(m=>{
+      [m.a, m.b].forEach(p=>{
+        if(!p || p==="TBD" || /^Winner /.test(p)) return;
+        allPlayers.add(p);
+      });
+      if(m.winner){
+        // The loser exits in this round
+        const loser = m.winner === m.a ? m.b : m.a;
+        if(loser && loser!=="TBD" && !/^Winner /.test(loser)){
+          exitRound[loser] = rd.name;
+        }
+      }
+    });
+  });
+
+  // "still alive" = appeared in any round, not in exitRound, and the bracket isn't finished
+  allPlayers.forEach(p => {
+    if(!(p in exitRound)) stillAlive.add(p);
+  });
+  // Champion is the winner of the Final, if decided
+  const finalRound = rounds.find(r => r.name === "Final");
+  const champion = finalRound?.matches[0]?.winner || null;
+  if(champion){
+    stillAlive.delete(champion);
+    exitRound[champion] = "Champion";
+  }
+
+  // Compute points
+  const standings = [];
+  allPlayers.forEach(p => {
+    const exit = exitRound[p];
+    const pts = exit ? (oomCfg.pointsByExit[exit] || 0) : null;
+    standings.push({ player: p, exit: exit || "In progress", points: pts });
+  });
+  // Sort: points desc (in-progress at the top, then by name); within finished, by points desc
+  standings.sort((a,b)=>{
+    if(a.points===null && b.points===null) return a.player.localeCompare(b.player);
+    if(a.points===null) return -1;
+    if(b.points===null) return 1;
+    return b.points - a.points || a.player.localeCompare(b.player);
+  });
+  return standings;
+}
+
+function renderOOM(){
+  const oomCfg = getOOM();
+  // Rules
+  const rulesList = $("#oomRules"); rulesList.innerHTML = "";
+  (oomCfg.description || []).forEach(line=>{
+    const li = el("li"); li.textContent = line; rulesList.appendChild(li);
+  });
+
+  // Subtitle
+  $("#oomSub").textContent = "Work in progress · final scoring rule TBD";
+
+  // Placeholder instead of leaderboard until real data lands
+  const tbl = $("#oomTbl");
+  tbl.innerHTML = `
+    <tbody>
+      <tr>
+        <td style="text-align:center;padding:32px 16px;color:var(--muted)">
+          <div style="font-size:42px;margin-bottom:8px">🚧</div>
+          <div style="font-size:16px;font-weight:800;color:var(--green-dark);margin-bottom:6px">Work in progress</div>
+          <div style="font-size:13px;line-height:1.5">The Order of Merit table will appear here once the season's points rule is finalised and the data is loaded.</div>
+        </td>
+      </tr>
+    </tbody>
+  `;
+  $("#oomNote").textContent = "";
+}
+
+/* ---------- Render orchestration ---------- */
+function renderAll(){
+  renderHeader();
+  renderJump();
+  renderPlayers();
+  if(state.tab==="board") renderBoard();
+  if(state.tab==="rounds") renderRounds();
+  if(state.tab==="settings") renderSettings();
+}
+
+/* ---------- Events ---------- */
+document.addEventListener("DOMContentLoaded",()=>{
+  load(); renderAll(); setTab(state.tab||"play");
+  // Default to Home section on app open
+  setSection("home");
+
+  // Initialise Supabase (async): connect → fetch remote data → re-render relevant sections
+  (async ()=>{
+    setSyncPill("connecting");
+    await initSupabase();
+    if(!supa){ setSyncPill("offline"); return; }
+    await loadRemote();
+    onAuthChange();
+    if(currentSection==="matchplay") renderMatchPlay();
+    if(currentSection==="oom") renderOOM();
+    if(currentSection==="home") renderDashboard();
+  })();
+
+  // Section-nav clicks (top: Home / Game / Match Play / OOM)
+  $$("#sectionNav button").forEach(b=>b.addEventListener("click", ()=>setSection(b.dataset.section)));
+
+  // Dashboard card clicks
+  $$(".dash-card").forEach(c=>c.addEventListener("click", ()=>setSection(c.dataset.go)));
+
+  // Hero buttons on dashboard
+  $("#heroStartGame").addEventListener("click", ()=>{
+    const has = activeHasScores();
+    const msg = has
+      ? "Archive the current round and start a new one? Settings carry over."
+      : "Start a new game and head to settings?";
+    if(confirm(msg)){
+      archiveAndStartNew();
+      save();
+      setSection("game");
+      setTab("settings");
+      showToast(has ? "Archived · configure your new game" : "Configure your new game");
+    }
+  });
+  $("#heroResumeGame").addEventListener("click", ()=>{ setSection("game"); setTab("play"); });
+
+  // In-game "Start a new game" button (Play tab) — jumps to Settings to reconfigure
+  $("#newGameBtn").addEventListener("click", ()=>{
+    const has = activeHasScores();
+    const msg = has
+      ? "Archive current round and start a new game? Settings carry over."
+      : "Start a new game and configure settings?";
+    if(confirm(msg)){
+      archiveAndStartNew();
+      save();
+      setTab("settings");
+      showToast(has ? "Archived · configure your new game" : "Configure your new game");
+    }
+  });
+  // "Archive game" — saves to history + resets to a blank round, stays on Play
+  $("#archiveGameBtn").addEventListener("click", ()=>{
+    const has = activeHasScores();
+    if(!has){
+      showToast("Nothing to archive yet — no scores entered");
+      return;
+    }
+    if(confirm("Archive the current round to history and start fresh with the same players/rules?")){
+      archiveAndStartNew();
+      save();
+      renderAll();
+      setTab("play");
+      showToast("Round archived · ready for the next one");
+    }
+  });
+
+  // Match Play view toggle (Bracket / List)
+  $$('.mp-view-toggle button').forEach(b=>b.addEventListener("click", ()=>{
+    mpView = b.dataset.mpView;
+    renderMatchPlay();
+  }));
+
+  // Backup: export / import
+  $("#exportBtn").addEventListener("click", exportRounds);
+  $("#importBtn").addEventListener("click", ()=>$("#importFile").click());
+  $("#importFile").addEventListener("change", (e)=>{
+    const f = e.target.files?.[0];
+    if(f) importRounds(f);
+    e.target.value = "";   // allow re-importing same file
+  });
+
+  /* ---------- Admin login / Supabase wiring ---------- */
+  $("#adminLoginBtn").addEventListener("click", ()=>{
+    $("#loginErr").classList.remove("show");
+    $("#loginEmail").value = supaSession?.user?.email || "";
+    $("#loginPassword").value = "";
+    $("#loginModal").classList.remove("hidden");
+    setTimeout(()=>$("#loginEmail").focus(), 50);
+  });
+  $("#loginCancel").addEventListener("click", ()=>$("#loginModal").classList.add("hidden"));
+  $("#loginSubmit").addEventListener("click", async ()=>{
+    const email = $("#loginEmail").value.trim();
+    const password = $("#loginPassword").value;
+    const err = $("#loginErr");
+    err.classList.remove("show");
+    if(!supa){ err.textContent = "Supabase not loaded — check your connection"; err.classList.add("show"); return; }
+    if(!email || !password){ err.textContent = "Email and password required"; err.classList.add("show"); return; }
+    const btn = $("#loginSubmit"); btn.disabled = true; btn.textContent = "Signing in…";
+    const { error } = await supa.auth.signInWithPassword({email, password});
+    btn.disabled = false; btn.textContent = "Sign in";
+    if(error){ err.textContent = error.message; err.classList.add("show"); return; }
+    $("#loginModal").classList.add("hidden");
+    showToast("Signed in as admin");
+  });
+  $("#adminLogoutBtn").addEventListener("click", async ()=>{
+    if(!supa) return;
+    await supa.auth.signOut();
+    showToast("Signed out");
+  });
+  $("#syncToCloudBtn").addEventListener("click", async ()=>{
+    if(!confirm("Push the current bracket view (whatever you see right now, including your edits) to Supabase?")) return;
+    const ok1 = await saveMatchPlayToCloud(getMatchPlay());
+    const ok2 = await saveOOMToCloud(getOOM());
+    if(ok1 && ok2){ showToast("Synced to cloud"); renderMatchPlay(); renderOOM(); renderDashboard(); }
+  });
+  $("#resetToSeedBtn").addEventListener("click", async ()=>{
+    if(!confirm("Replace ALL cloud data with the bracket baked into this app? This wipes any edits made via the app.")) return;
+    if(!confirm("Are you sure? This cannot be undone.")) return;
+    const ok1 = await saveMatchPlayToCloud(MATCH_PLAY_SEED);
+    const ok2 = await saveOOMToCloud(OOM_RULES);
+    if(ok1 && ok2){ showToast("Cloud reset to seed"); renderMatchPlay(); renderOOM(); renderDashboard(); }
+  });
+
+  /* ---------- Match edit modal (admin only) ---------- */
+  let _editingPath = null;   // "roundIdx.matchIdx"
+  document.addEventListener("click", (e)=>{
+    if(!isAdmin()) return;
+    // Either: list view row with .mp-match.editable, or SVG group with [data-edit-match]
+    const target = e.target.closest?.(".mp-match.editable, [data-edit-match]");
+    if(!target) return;
+    _editingPath = target.dataset.editMatch;
+    if(!_editingPath) return;
+    const [ri, mi] = _editingPath.split(".").map(Number);
+    const m = getMatchPlay().rounds[ri].matches[mi];
+    $("#matchModalTitle").textContent = `${getMatchPlay().rounds[ri].name} — Match ${mi+1}`;
+    $("#matchPlayerA").value = m.a || "";
+    $("#matchPlayerB").value = m.b || "";
+    $("#matchWinner").value = m.winner === m.a ? "A" : (m.winner === m.b ? "B" : "");
+    $("#matchScore").value = m.score || "";
+    $("#matchErr").classList.remove("show");
+    $("#matchModal").classList.remove("hidden");
+  });
+  $("#matchCancel").addEventListener("click", ()=>$("#matchModal").classList.add("hidden"));
+  $("#matchSave").addEventListener("click", async ()=>{
+    const err = $("#matchErr"); err.classList.remove("show");
+    if(!_editingPath) return;
+    const [ri, mi] = _editingPath.split(".").map(Number);
+    const a = $("#matchPlayerA").value.trim();
+    const b = $("#matchPlayerB").value.trim();
+    const winSel = $("#matchWinner").value;   // "" | "A" | "B"
+    const score = $("#matchScore").value.trim();
+    if(!a || !b){ err.textContent = "Both player names are required"; err.classList.add("show"); return; }
+    // Build full updated data (clone current, mutate one match)
+    const current = JSON.parse(JSON.stringify(getMatchPlay()));
+    current.rounds[ri].matches[mi] = {
+      a, b,
+      winner: winSel==="A" ? a : (winSel==="B" ? b : null),
+      score: score || "",
+    };
+    const btn = $("#matchSave"); btn.disabled = true; btn.textContent = "Saving…";
+    const ok = await saveMatchPlayToCloud(current);
+    btn.disabled = false; btn.textContent = "Save";
+    if(!ok) return;
+    $("#matchModal").classList.add("hidden");
+    renderMatchPlay(); renderOOM(); renderDashboard();
+    showToast("Match saved");
+  });
+
+  // Tab clicks
+  $$(".tab").forEach(t=>t.addEventListener("click",()=>setTab(t.dataset.tab)));
+
+  // Hole nav
+  $("#prevHole").addEventListener("click",()=>{ if(state.cur>0){ state.cur--; save(); renderAll(); window.scrollTo({top:0,behavior:"smooth"});} });
+  $("#nextHole").addEventListener("click",()=>{ if(state.cur<17){ state.cur++; save(); renderAll(); window.scrollTo({top:0,behavior:"smooth"});} });
+  $("#nextBtn").addEventListener("click",()=>{
+    if(state.cur<17){ state.cur++; save(); renderAll(); window.scrollTo({top:0,behavior:"smooth"}); showToast("Saved · Hole "+(state.cur+1)); }
+    else { setTab("board"); showToast("Round complete!"); }
+  });
+
+  // Score / counter / par inputs (delegated)
+  document.addEventListener("input",(e)=>{
+    const t = e.target;
+    if(t.matches('input.score')){
+      const who = +t.dataset.who;
+      const v = t.value === "" ? null : Math.max(1, Math.min(15, +t.value));
+      state.holes[state.cur].scores[who] = v;
+      save(); renderHeader(); renderJump();
+      // re-render only this player's pts label
+      const card = t.closest(".player-card");
+      const pts = holePoints(state.cur,who);
+      const lbl = card.querySelector(".ph .pts");
+      lbl.textContent = fmt(pts)+" pts";
+      lbl.className = "pts "+(pts>0?'pos':pts<0?'neg':'zero');
+      const chip = card.querySelector(".auto-chip");
+      if(chip) chip.outerHTML = autoChip(v, state.pars[state.cur]).replace(/^<span/,"<span");
+    }
+    else if(t.id==="stakeInput"){ state.stake = Math.max(0, +t.value||0); save(); renderHeader(); const s=$("#settleStake"); if(s) s.textContent = state.stake; }
+    else if(t.dataset.pts){ state.pts[t.dataset.pts] = +t.value||0; save(); renderHeader(); renderBoard(); renderPlayers(); }
+    else if(t.dataset.pname!==undefined){ state.players[+t.dataset.pname].name = t.value || ("Player "+(+t.dataset.pname+1)); save(); renderHeader(); renderPlayers(); }
+    else if(t.dataset.bonusThr!==undefined){ state.players[+t.dataset.bonusThr].bonus.threshold = Math.max(0, +t.value||0); save(); renderHeader(); renderBoard(); }
+    else if(t.dataset.bonusPts!==undefined){ state.players[+t.dataset.bonusPts].bonus.points = +t.value||0; save(); renderHeader(); renderBoard(); }
+    else if(t.dataset.penThr!==undefined){
+      const i = +t.dataset.penThr;
+      if(!state.players[i].penalty) state.players[i].penalty = {enabled:false,threshold:90,points:5};
+      state.players[i].penalty.threshold = Math.max(0, +t.value||0);
+      save(); renderHeader(); renderBoard();
+    }
+    else if(t.dataset.penPts!==undefined){
+      const i = +t.dataset.penPts;
+      if(!state.players[i].penalty) state.players[i].penalty = {enabled:false,threshold:90,points:5};
+      state.players[i].penalty.points = +t.value||0;
+      save(); renderHeader(); renderBoard();
+    }
+  });
+  document.addEventListener("change",(e)=>{
+    const t = e.target;
+    if(t.id==="courseSel"){
+      const c = t.value;
+      state.course = c;
+      state.pars = [...COURSES[c].pars];   // pars locked to course
+      save(); renderAll();
+    }
+  });
+
+  // Counter +/- and stepper
+  document.addEventListener("click",(e)=>{
+    const t = e.target;
+    // counter
+    if(t.classList.contains("cmin") || t.classList.contains("cpls")){
+      const who = +t.dataset.who, k = t.dataset.k;
+      const arr = state.holes[state.cur].counters[k];
+      const cur = arr[who]||0;
+      arr[who] = t.classList.contains("cpls") ? Math.min(20,cur+1) : Math.max(0,cur-1);
+      save(); renderHeader(); renderPlayers();
+      return;
+    }
+    // Yes/No toggle stat (GIR / U&D / FW / Short 1st / 3-putt)
+    const togCtr = t.closest?.("[data-toggle]");
+    if(togCtr){
+      const who = +togCtr.dataset.who, k = togCtr.dataset.k;
+      const arr = state.holes[state.cur].counters[k];
+      arr[who] = (arr[who]||0) > 0 ? 0 : 1;
+      save(); renderHeader(); renderPlayers();
+      return;
+    }
+    // score stepper
+    if(t.classList.contains("sadd") || t.classList.contains("ssub")){
+      const who = +t.dataset.who;
+      const cur = state.holes[state.cur].scores[who];
+      const par = state.pars[state.cur];
+      const start = cur==null ? par : cur;
+      const next = t.classList.contains("sadd") ? Math.min(15, start+1) : Math.max(1, start-1);
+      state.holes[state.cur].scores[who] = next;
+      save(); renderHeader(); renderJump(); renderPlayers();
+      return;
+    }
+    // toggle rule (Settings tab)
+    if(t.classList.contains("toggle") || t.parentElement?.classList.contains("toggle")){
+      const tog = t.classList.contains("toggle") ? t : t.parentElement;
+      const k = tog.dataset.rule;
+      if(!k) return;
+      state.rules[k] = !state.rules[k]; save(); renderHeader(); renderPlayers(); renderSettings();
+      return;
+    }
+    // per-player bonus toggle (Settings tab)
+    if(t.dataset.bonusEnable !== undefined){
+      const i = +t.dataset.bonusEnable;
+      state.players[i].bonus.enabled = !state.players[i].bonus.enabled;
+      save(); renderHeader(); renderSettings(); renderBoard();
+      return;
+    }
+    // per-player penalty toggle (Settings tab)
+    if(t.dataset.penEnable !== undefined){
+      const i = +t.dataset.penEnable;
+      if(!state.players[i].penalty) state.players[i].penalty = {enabled:false,threshold:90,points:5};
+      state.players[i].penalty.enabled = !state.players[i].penalty.enabled;
+      save(); renderHeader(); renderSettings(); renderBoard();
+      return;
+    }
+    // delete archived round (Rounds tab)
+    if(t.dataset.delRound !== undefined){
+      const idx = +t.dataset.delRound;
+      const r = state.history[idx];
+      if(!r) return;
+      const label = `${fmtDateShort(r.archivedAt)} · ${r.courseName||r.course}`;
+      if(confirm(`Delete this round?\n\n${label}\n\nThis cannot be undone.`)){
+        state.history.splice(idx,1);
+        save(); renderRounds(); showToast("Round deleted");
+      }
+      return;
+    }
+    // remove player
+    if(t.dataset.prm!==undefined && state.players.length>2){
+      const i = +t.dataset.prm;
+      state.players.splice(i,1);
+      state.holes.forEach(h=>{
+        h.scores.splice(i,1);
+        STAT_DEFS.forEach(([k])=>h.counters[k].splice(i,1));
+      });
+      save(); renderAll();
+      return;
+    }
+    // add player
+    if(t.id==="addPlayer" && state.players.length<4){
+      state.players.push(makePlayer(state.players.length));
+      state.holes.forEach(h=>{
+        h.scores.push(null);
+        STAT_DEFS.forEach(([k])=>h.counters[k].push(0));
+      });
+      save(); renderAll();
+      return;
+    }
+    // archive current round + start fresh (keeps all setup, opens settings to tweak)
+    if(t.id==="archiveAndStart"){
+      const has = activeHasScores();
+      const msg = has
+        ? "Archive the current round to history and start a new one? Players, course, stake, and rules will carry over (you can tweak them next)."
+        : "Start a new round? (No scores yet, so nothing will be archived.) You'll land on Settings to configure.";
+      if(confirm(msg)){
+        archiveAndStartNew();
+        save(); renderAll(); setTab("settings");
+        showToast(has ? "Archived · configure new game" : "Configure new game");
+      }
+      return;
+    }
+    // wipe scores without archiving
+    if(t.id==="resetRound"){
+      if(confirm("Wipe current scores and counters WITHOUT archiving? (Players, course, stake, rules are kept.)")){
+        const n = state.players.length;
+        state.holes = Array.from({length:18},()=>blankHole(n));
+        state.cur = 0; save(); renderAll(); setTab("play"); showToast("Scores wiped");
+      }
+      return;
+    }
+    // full reset (also clears history)
+    if(t.id==="newRound"){
+      if(confirm("Full reset? This deletes ALL archived rounds AND the current round. There is no undo.")){
+        state = defaultState(); save(); renderAll(); setTab("play"); showToast("Everything reset");
+      }
+      return;
+    }
+    // stats toggle (Settings tab)
+    const stTog = t.closest?.("[data-stats-toggle]");
+    if(stTog){
+      state.showStats = !state.showStats;
+      save(); renderSettings();
+      return;
+    }
+    // expand/collapse a past round card
+    if(t.dataset?.expand !== undefined){
+      const card = t.closest(".round-card");
+      if(card){
+        const open = card.classList.toggle("open");
+        t.textContent = open ? "Hide details ▴" : "Show details ▾";
+      }
+      return;
+    }
+  });
+
+  // Service worker (PWA)
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+});
+</script>
+</body>
+</html>
